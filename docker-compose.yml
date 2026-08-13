@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: cineverse-postgres
+    environment:
+      POSTGRES_DB: cineverse
+      POSTGRES_USER: cineverse
+      POSTGRES_PASSWORD: cineverse_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - cineverse-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cineverse -d cineverse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: cineverse-backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/cineverse
+      DB_USERNAME: cineverse
+      DB_PASSWORD: cineverse_dev_password
+      JWT_SECRET: change-this-development-secret-key-change-this-1234567890
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: cineverse-frontend
+    environment:
+      VITE_API_URL: http://localhost:8080/api
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  cineverse-postgres-data:

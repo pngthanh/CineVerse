@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cineverse
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cineverse}
+    username: ${DB_USERNAME:cineverse}
+    password: ${DB_PASSWORD:cineverse_dev_password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  jackson:
+    default-property-inclusion: non_null
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  jwt:
+    secret: ${JWT_SECRET:change-this-development-secret-key-change-this-1234567890}
+    issuer: cineverse-api
+    expiration-minutes: 120
+  booking:
+    seat-hold-minutes: 5
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+
+logging:
+  level:
+    org.hibernate.SQL: WARN

@@ -1,0 +1,151 @@
+export type Role = 'CUSTOMER' | 'ADMIN';
+export type UserStatus = 'ACTIVE' | 'LOCKED';
+export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON' | 'INACTIVE';
+export type SeatType = 'NORMAL' | 'VIP' | 'COUPLE';
+export type SeatStatus = 'AVAILABLE' | 'HELD' | 'BOOKED';
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+export type TicketStatus = 'CONFIRMED' | 'USED' | 'CANCELLED';
+
+export interface UserProfile {
+    id: number;
+    fullName: string;
+    email: string;
+    role: Role;
+    status: UserStatus;
+    createdAt: string;
+}
+
+export interface Movie {
+    id: number;
+    title: string;
+    description: string;
+    genres: string;
+    durationMinutes: number;
+    releaseDate?: string;
+    director?: string;
+    castNames?: string;
+    ageRating?: string;
+    posterUrl?: string;
+    backdropUrl?: string;
+    trailerUrl?: string;
+    status: MovieStatus;
+    ratingAverage?: number;
+    reviewCount?: number;
+    ticketsSold?: number;
+}
+
+export interface CinemaRoomSummary {
+    id: number;
+    name: string;
+    active: boolean;
+    seatCount: number;
+}
+
+export interface Cinema {
+    id: number;
+    name: string;
+    address: string;
+    active: boolean;
+    rooms: CinemaRoomSummary[];
+}
+
+export interface Showtime {
+    id: number;
+    movieId: number;
+    movieTitle: string;
+    cinemaId: number;
+    cinemaName: string;
+    roomId: number;
+    roomName: string;
+    startTime: string;
+    endTime: string;
+    basePrice: number;
+    active: boolean;
+}
+
+export interface SeatItem {
+    seatId: number;
+    code: string;
+    type: SeatType;
+    status: SeatStatus;
+    price: number;
+    holdExpiresAt?: string;
+}
+
+export interface SeatMap {
+    showtimeId: number;
+    seats: SeatItem[];
+}
+
+export interface SeatHold {
+    holdToken: string;
+    expiresAt: string;
+    seats: Array<{
+        seatId: number;
+        code: string;
+        type: SeatType;
+        price: number;
+    }>;
+    total: number;
+}
+
+export interface Booking {
+    id: number;
+    bookingCode: string;
+    status: BookingStatus;
+    createdAt: string;
+    expiresAt: string;
+    seatAmount: number;
+    concessionAmount: number;
+    subtotalAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    voucherCode?: string;
+    user?: {
+        id: number;
+        fullName: string;
+        email: string;
+        role: Role;
+        status: UserStatus;
+        createdAt: string;
+    };
+    showtime: {
+        id: number;
+        movieTitle: string;
+        cinemaName: string;
+        roomName: string;
+        startTime: string;
+    };
+    seats: Array<{
+        id: number;
+        code: string;
+        type: SeatType;
+        price: number;
+    }>;
+    concessions: Array<{
+        itemId: number;
+        name: string;
+        quantity: number;
+        unitPrice: number;
+        totalPrice: number;
+    }>;
+    paymentStatus?: PaymentStatus;
+    ticketCode?: string;
+    ticketStatus?: TicketStatus;
+}
+
+export interface VoucherQuote {
+    code: string;
+    discountPercent: number;
+    subtotal: number;
+    discountAmount: number;
+    totalAmount: number;
+}
+
+export interface ConcessionItem {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+}
