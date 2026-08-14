@@ -16,6 +16,7 @@ import com.pngthanh.cineverse.showtime.entity.Showtime;
 import com.pngthanh.cineverse.showtime.entity.ShowtimeSeat;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeRepository;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeSeatRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -71,6 +72,12 @@ public class ShowtimeService {
     public ShowtimeResponse create(ShowtimeRequest request) {
         Movie movie = movies.require(request.movieId());
         Room room = cinemas.requireRoom(request.roomId());
+        if (!room.isActive() || !room.getCinema().isActive()) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "ROOM_INACTIVE",
+                    "Không thể tạo suất chiếu cho rạp hoặc phòng đang ngừng hoạt động.");
+        }
         LocalDateTime endTime = request.startTime().plusMinutes(movie.getDurationMinutes());
 
         if (showtimes.hasConflict(room.getId(), request.startTime(), endTime, null)) {
@@ -85,7 +92,10 @@ public class ShowtimeService {
         showtime.setRoom(room);
         showtime.setStartTime(request.startTime());
         showtime.setEndTime(endTime);
-        showtime.setBasePrice(request.basePrice());
+        BigDecimal basePrice = request.basePrice() == null
+                ? pricing.basePrice(room, request.startTime())
+                : request.basePrice();
+        showtime.setBasePrice(basePrice);
         showtime = showtimes.save(showtime);
 
         for (Seat seat : seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId())) {

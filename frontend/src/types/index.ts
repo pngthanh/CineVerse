@@ -39,7 +39,13 @@ export interface CinemaRoomSummary {
     id: number;
     name: string;
     active: boolean;
+    rows: number;
+    seatsPerRow: number;
     seatCount: number;
+    vipSeatCount: number;
+    weekdayBasePrice: number;
+    weekendBasePrice: number;
+    vipSurcharge: number;
 }
 
 export interface Cinema {

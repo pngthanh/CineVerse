@@ -11,7 +11,6 @@ export function AdminShowtimesPage() {
     const [movieId, setMovieId] = useState('');
     const [roomId, setRoomId] = useState('');
     const [startTime, setStartTime] = useState('');
-    const [basePrice, setBasePrice] = useState(70000);
     const [filterMovieId, setFilterMovieId] = useState('');
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
@@ -33,6 +32,10 @@ export function AdminShowtimesPage() {
     const selectedCinema = useMemo(
         () => cinemas.find((cinema) => cinema.id === Number(cinemaId)),
         [cinemas, cinemaId],
+    );
+    const selectedRoom = useMemo(
+        () => selectedCinema?.rooms.find((room) => room.id === Number(roomId)),
+        [selectedCinema, roomId],
     );
 
     useEffect(() => {
@@ -64,11 +67,11 @@ export function AdminShowtimesPage() {
                     movieId: Number(movieId),
                     roomId: Number(roomId),
                     startTime,
-                    basePrice,
+                    basePrice: null,
                 }),
             });
             setStartTime('');
-            setMessage('Đã tạo suất chiếu.');
+            setMessage('Đã tạo suất chiếu. Giá được lấy tự động từ cấu hình phòng theo ngày chiếu.');
             await reload();
         } catch (requestError) {
             setError(requestError instanceof ApiError ? requestError.message : 'Không thể tạo suất chiếu.');
@@ -100,7 +103,7 @@ export function AdminShowtimesPage() {
         <div className="admin-page">
             <div className="page-title">
                 <h1>Suất chiếu</h1>
-                <p>Máy chủ kiểm tra và chặn lịch bị chồng trong cùng một phòng.</p>
+                <p>Máy chủ kiểm tra lịch trùng và tự lấy giá cơ bản từ cấu hình phòng.</p>
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}
@@ -127,17 +130,25 @@ export function AdminShowtimesPage() {
                     <label>
                         Phòng
                         <select value={roomId} onChange={(event) => setRoomId(event.target.value)} required>
-                            {(selectedCinema?.rooms ?? []).map((room) => <option value={room.id} key={room.id}>{room.name}</option>)}
+                            {(selectedCinema?.rooms ?? []).filter((room) => room.active).map((room) => (
+                                <option value={room.id} key={room.id}>{room.name}</option>
+                            ))}
                         </select>
                     </label>
                     <label>
                         Thời gian bắt đầu
                         <input type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} required />
                     </label>
-                    <label>
-                        Giá cơ bản
-                        <input type="number" min="0" step="1000" value={basePrice} onChange={(event) => setBasePrice(Number(event.target.value))} required />
-                    </label>
+                    {selectedRoom && (
+                        <div className="showtime-pricing-preview">
+                            <span><small>Ngày thường</small><strong>{money(selectedRoom.weekdayBasePrice)}</strong></span>
+                            <span><small>Cuối tuần</small><strong>{money(selectedRoom.weekendBasePrice)}</strong></span>
+                            <span><small>VIP cộng</small><strong>+{money(selectedRoom.vipSurcharge)}</strong></span>
+                        </div>
+                    )}
+                    <p className="muted admin-form-note">
+                        Giá của suất được chụp lại khi tạo suất. Nếu sau đó Admin đổi giá phòng, các suất cũ vẫn giữ giá cũ.
+                    </p>
                     <button className="btn" disabled={!roomId}>Tạo suất</button>
                 </form>
 

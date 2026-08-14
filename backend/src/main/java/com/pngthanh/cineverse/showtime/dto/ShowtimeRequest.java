@@ -9,5 +9,5 @@ public record ShowtimeRequest(
         @NotNull Long movieId,
         @NotNull Long roomId,
         @NotNull LocalDateTime startTime,
-        @NotNull @DecimalMin("0") BigDecimal basePrice) {
+        @DecimalMin("0") BigDecimal basePrice) {
 }

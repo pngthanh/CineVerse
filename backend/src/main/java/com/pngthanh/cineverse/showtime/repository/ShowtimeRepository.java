@@ -14,6 +14,8 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
 
     List<Showtime> findAllByRoomCinemaIdAndActiveTrueOrderByStartTime(Long cinemaId);
 
+    List<Showtime> findAllByRoomIdAndActiveTrueOrderByStartTime(Long roomId);
+
     List<Showtime> findAllByMovieIdAndRoomCinemaIdAndActiveTrueOrderByStartTime(
             Long movieId,
             Long cinemaId);
@@ -27,6 +29,12 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
             Long cinemaId,
             LocalDateTime from,
             LocalDateTime to);
+
+    boolean existsByRoomId(Long roomId);
+
+    boolean existsByRoomIdAndActiveTrueAndStartTimeAfter(Long roomId, LocalDateTime time);
+
+    boolean existsByRoomCinemaIdAndActiveTrueAndStartTimeAfter(Long cinemaId, LocalDateTime time);
 
     @Query("""
         select count(s) > 0 from Showtime s

@@ -73,6 +73,12 @@ public class AdminController {
         movies.deactivate(id);
     }
 
+
+    @GetMapping("/cinemas")
+    public List<CinemaResponse> cinemas() {
+        return cinemas.listAdmin();
+    }
+
     @PostMapping("/cinemas")
     @ResponseStatus(HttpStatus.CREATED)
     public CinemaResponse createCinema(@Valid @RequestBody CinemaRequest request) {
@@ -86,12 +92,31 @@ public class AdminController {
         return cinemas.update(id, request);
     }
 
+    @DeleteMapping("/cinemas/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivateCinema(@PathVariable Long id) {
+        cinemas.deactivateCinema(id);
+    }
+
     @PostMapping("/cinemas/{id}/rooms")
     @ResponseStatus(HttpStatus.CREATED)
     public CinemaResponse.RoomResponse createRoom(
             @PathVariable Long id,
             @Valid @RequestBody RoomRequest request) {
         return cinemas.createRoom(id, request);
+    }
+
+    @PutMapping("/rooms/{id}")
+    public CinemaResponse.RoomResponse updateRoom(
+            @PathVariable Long id,
+            @Valid @RequestBody RoomRequest request) {
+        return cinemas.updateRoom(id, request);
+    }
+
+    @DeleteMapping("/rooms/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivateRoom(@PathVariable Long id) {
+        cinemas.deactivateRoom(id);
     }
 
     @PostMapping("/showtimes")

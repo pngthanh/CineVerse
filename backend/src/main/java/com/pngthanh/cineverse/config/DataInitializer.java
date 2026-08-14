@@ -72,6 +72,7 @@ public class DataInitializer implements CommandLineRunner {
         seedConcessionItems();
         List<Movie> seededMovies = seedMovies();
         Room room = ensureCinemaAndRoom();
+        normalizeRoomConfiguration();
         ensureSeats(room);
         normalizeExistingRoomSeats();
         if (showtimes.count() < 6) {
@@ -192,8 +193,37 @@ public class DataInitializer implements CommandLineRunner {
             Room room = new Room();
             room.setCinema(cinema);
             room.setName("Phòng 01");
+            room.setRowCount(DEFAULT_ROWS);
+            room.setSeatsPerRow(DEFAULT_SEATS_PER_ROW);
+            room.setWeekdayBasePrice(new BigDecimal("70000"));
+            room.setWeekendBasePrice(new BigDecimal("100000"));
+            room.setVipSurcharge(new BigDecimal("20000"));
             return rooms.save(room);
         });
+    }
+
+    private void normalizeRoomConfiguration() {
+        for (Room room : rooms.findAll()) {
+            List<Seat> roomSeats = seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId());
+            int rowsCount = roomSeats.isEmpty()
+                    ? DEFAULT_ROWS
+                    : roomSeats.stream().mapToInt(Seat::getRowIndex).max().orElse(DEFAULT_ROWS - 1) + 1;
+            int seatsPerRow = roomSeats.isEmpty()
+                    ? DEFAULT_SEATS_PER_ROW
+                    : roomSeats.stream().mapToInt(Seat::getColumnIndex).max()
+                            .orElse(DEFAULT_SEATS_PER_ROW - 1) + 1;
+            room.setRowCount(Math.max(6, rowsCount));
+            room.setSeatsPerRow(Math.max(6, seatsPerRow));
+            if (room.getWeekdayBasePrice() == null) {
+                room.setWeekdayBasePrice(new BigDecimal("70000"));
+            }
+            if (room.getWeekendBasePrice() == null) {
+                room.setWeekendBasePrice(new BigDecimal("100000"));
+            }
+            if (room.getVipSurcharge() == null) {
+                room.setVipSurcharge(new BigDecimal("20000"));
+            }
+        }
     }
 
     private void ensureSeats(Room room) {
@@ -203,8 +233,8 @@ public class DataInitializer implements CommandLineRunner {
                 SeatType expectedType = isVipSeat(
                         seat.getRowIndex(),
                         seat.getColumnIndex(),
-                        DEFAULT_ROWS,
-                        DEFAULT_SEATS_PER_ROW)
+                        room.getRowCount(),
+                        room.getSeatsPerRow())
                         ? SeatType.VIP
                         : SeatType.NORMAL;
                 if (seat.getType() != expectedType) {
@@ -214,9 +244,9 @@ public class DataInitializer implements CommandLineRunner {
             }
             return;
         }
-        for (int rowIndex = 0; rowIndex < DEFAULT_ROWS; rowIndex++) {
+        for (int rowIndex = 0; rowIndex < room.getRowCount(); rowIndex++) {
             char rowLetter = (char) ('A' + rowIndex);
-            for (int seatNumber = 1; seatNumber <= DEFAULT_SEATS_PER_ROW; seatNumber++) {
+            for (int seatNumber = 1; seatNumber <= room.getSeatsPerRow(); seatNumber++) {
                 Seat seat = new Seat();
                 seat.setRoom(room);
                 seat.setSeatCode(rowLetter + String.valueOf(seatNumber));
@@ -225,8 +255,8 @@ public class DataInitializer implements CommandLineRunner {
                 seat.setType(isVipSeat(
                         rowIndex,
                         seatNumber - 1,
-                        DEFAULT_ROWS,
-                        DEFAULT_SEATS_PER_ROW)
+                        room.getRowCount(),
+                        room.getSeatsPerRow())
                         ? SeatType.VIP
                         : SeatType.NORMAL);
                 seats.save(seat);
@@ -249,6 +279,8 @@ public class DataInitializer implements CommandLineRunner {
                     .mapToInt(Seat::getColumnIndex)
                     .max()
                     .orElse(0) + 1;
+            room.setRowCount(rowsCount);
+            room.setSeatsPerRow(seatsPerRow);
 
             for (Seat seat : roomSeats) {
                 SeatType expectedType = isVipSeat(
@@ -271,7 +303,7 @@ public class DataInitializer implements CommandLineRunner {
             int columnIndex,
             int rowsCount,
             int seatsPerRow) {
-        boolean hasVipCore = rowsCount >= 5 && seatsPerRow >= 5;
+        boolean hasVipCore = rowsCount >= 6 && seatsPerRow >= 6;
         boolean vipRow = rowIndex >= 2 && rowIndex < rowsCount - 2;
         boolean vipColumn = columnIndex >= 2 && columnIndex < seatsPerRow - 2;
         return hasVipCore && vipRow && vipColumn;
@@ -289,7 +321,11 @@ public class DataInitializer implements CommandLineRunner {
                 showtime.setRoom(room);
                 showtime.setStartTime(start);
                 showtime.setEndTime(start.plusMinutes(movie.getDurationMinutes()));
-                showtime.setBasePrice(new BigDecimal(day == 3 ? "80000" : "70000"));
+                boolean weekend = start.getDayOfWeek().getValue() >= 6;
+                BigDecimal basePrice = weekend
+                        ? room.getWeekendBasePrice()
+                        : room.getWeekdayBasePrice();
+                showtime.setBasePrice(basePrice);
                 showtime = showtimes.save(showtime);
                 for (Seat seat : roomSeats) {
                     ShowtimeSeat item = new ShowtimeSeat();

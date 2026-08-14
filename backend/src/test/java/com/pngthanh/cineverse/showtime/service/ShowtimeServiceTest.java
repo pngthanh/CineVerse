@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.pngthanh.cineverse.booking.service.PricingService;
+import com.pngthanh.cineverse.cinema.entity.Cinema;
 import com.pngthanh.cineverse.cinema.entity.Room;
 import com.pngthanh.cineverse.cinema.repository.SeatRepository;
 import com.pngthanh.cineverse.cinema.service.CinemaService;
@@ -43,8 +44,12 @@ class ShowtimeServiceTest {
         when(movie.getDurationMinutes()).thenReturn(120);
         when(movies.require(1L)).thenReturn(movie);
 
+        Cinema cinema = mock(Cinema.class);
+        when(cinema.isActive()).thenReturn(true);
         Room room = mock(Room.class);
         when(room.getId()).thenReturn(2L);
+        when(room.isActive()).thenReturn(true);
+        when(room.getCinema()).thenReturn(cinema);
         when(cinemas.requireRoom(2L)).thenReturn(room);
 
         LocalDateTime start = LocalDateTime.of(2026, 8, 12, 19, 0);
