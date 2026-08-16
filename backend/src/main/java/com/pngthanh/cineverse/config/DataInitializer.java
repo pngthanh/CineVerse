@@ -22,20 +22,23 @@ import com.pngthanh.cineverse.user.repository.UserRepository;
 import com.pngthanh.cineverse.voucher.entity.Voucher;
 import com.pngthanh.cineverse.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
-    private static final int DEFAULT_ROWS = 8;
-    private static final int DEFAULT_SEATS_PER_ROW = 10;
-    private static final String DEMO_TRAILER = "https://www.youtube.com/watch?v=0H_mDKTRVBQ";
+
+    private static final String DATASET_VERSION = "rich-demo-2026-08-v1";
+    private static final String DEMO_TRAILER =
+            "https://www.youtube.com/watch?v=0H_mDKTRVBQ";
 
     private final UserRepository users;
     private final MovieRepository movies;
@@ -44,14 +47,26 @@ public class DataInitializer implements CommandLineRunner {
     private final SeatRepository seats;
     private final ShowtimeRepository showtimes;
     private final ShowtimeSeatRepository showtimeSeats;
-    private final PasswordEncoder encoder;
     private final VoucherRepository vouchers;
     private final ConcessionItemRepository concessionItems;
+    private final PasswordEncoder encoder;
+    private final JdbcTemplate jdbc;
+    private final Clock clock;
 
-    public DataInitializer(UserRepository users, MovieRepository movies, CinemaRepository cinemas,
-            RoomRepository rooms, SeatRepository seats, ShowtimeRepository showtimes,
-            ShowtimeSeatRepository showtimeSeats, PasswordEncoder encoder, VoucherRepository vouchers,
-            ConcessionItemRepository concessionItems) {
+    public DataInitializer(
+            UserRepository users,
+            MovieRepository movies,
+            CinemaRepository cinemas,
+            RoomRepository rooms,
+            SeatRepository seats,
+            ShowtimeRepository showtimes,
+            ShowtimeSeatRepository showtimeSeats,
+            VoucherRepository vouchers,
+            ConcessionItemRepository concessionItems,
+            PasswordEncoder encoder,
+            JdbcTemplate jdbc,
+            Clock clock) {
+
         this.users = users;
         this.movies = movies;
         this.cinemas = cinemas;
@@ -59,241 +74,582 @@ public class DataInitializer implements CommandLineRunner {
         this.seats = seats;
         this.showtimes = showtimes;
         this.showtimeSeats = showtimeSeats;
-        this.encoder = encoder;
         this.vouchers = vouchers;
         this.concessionItems = concessionItems;
+        this.encoder = encoder;
+        this.jdbc = jdbc;
+        this.clock = clock;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
+        if (!shouldSeedDemoData()) {
+            return;
+        }
+
+        resetDemoData();
+
         seedUsers();
         seedVouchers();
-        seedConcessionItems();
-        List<Movie> seededMovies = seedMovies();
-        Room room = ensureCinemaAndRoom();
-        normalizeRoomConfiguration();
-        ensureSeats(room);
-        normalizeExistingRoomSeats();
-        if (showtimes.count() < 6) {
-            seedShowtimes(seededMovies, room);
-        }
+        seedConcessions();
+
+        List<Movie> movieList = seedMovies();
+        List<Room> roomList = seedCinemasAndRooms();
+
+        seedShowtimes(movieList, roomList);
+
+        markDatasetAsSeeded();
+    }
+
+    private boolean shouldSeedDemoData() {
+        jdbc.execute("""
+                create table if not exists app_seed_state (
+                    seed_key varchar(100) primary key,
+                    seed_value varchar(200) not null
+                )
+                """);
+
+        List<String> versions = jdbc.query(
+                """
+                select seed_value
+                from app_seed_state
+                where seed_key = 'dataset_version'
+                """,
+                (rs, rowNum) -> rs.getString(1));
+
+        return versions.isEmpty()
+                || !DATASET_VERSION.equals(versions.get(0));
+    }
+
+    private void resetDemoData() {
+        jdbc.execute("""
+                truncate table
+                    booking_concessions,
+                    booking_seats,
+                    tickets,
+                    payments,
+                    bookings,
+                    showtime_seats,
+                    showtimes,
+                    seats,
+                    rooms,
+                    cinemas,
+                    movies,
+                    vouchers,
+                    concession_items,
+                    users
+                restart identity cascade
+                """);
+    }
+
+    private void markDatasetAsSeeded() {
+        jdbc.update(
+                """
+                insert into app_seed_state(seed_key, seed_value)
+                values ('dataset_version', ?)
+                on conflict (seed_key)
+                do update set seed_value = excluded.seed_value
+                """,
+                DATASET_VERSION);
     }
 
     private void seedUsers() {
-        if (users.findByEmailIgnoreCase("admin@cineverse.vn").isEmpty()) {
-            User admin = new User();
-            admin.setFullName("Quản trị CineVerse");
-            admin.setEmail("admin@cineverse.vn");
-            admin.setPasswordHash(encoder.encode("Admin@123"));
-            admin.setRole(Role.ADMIN);
-            users.save(admin);
-        }
-        if (users.findByEmailIgnoreCase("customer@cineverse.vn").isEmpty()) {
-            User customer = new User();
-            customer.setFullName("Khách hàng Demo");
-            customer.setEmail("customer@cineverse.vn");
-            customer.setPasswordHash(encoder.encode("Customer@123"));
-            users.save(customer);
-        }
+        User admin = new User();
+        admin.setFullName("Quản trị CineVerse");
+        admin.setEmail("admin@cineverse.vn");
+        admin.setPasswordHash(encoder.encode("Admin@123"));
+        admin.setRole(Role.ADMIN);
+        users.save(admin);
+
+        User customer = new User();
+        customer.setFullName("Khách hàng Demo");
+        customer.setEmail("customer@cineverse.vn");
+        customer.setPasswordHash(encoder.encode("Customer@123"));
+        users.save(customer);
     }
 
     private void seedVouchers() {
-        if (vouchers.findByCodeIgnoreCase("CINE10").isEmpty()) {
-            Voucher voucher = new Voucher();
-            voucher.setCode("CINE10");
-            voucher.setDiscountPercent(new BigDecimal("10"));
-            voucher.setMinOrderAmount(new BigDecimal("100000"));
-            voucher.setMaxDiscountAmount(new BigDecimal("50000"));
-            voucher.setStartsAt(LocalDateTime.now().minusDays(1));
-            voucher.setExpiresAt(LocalDateTime.now().plusMonths(6));
-            vouchers.save(voucher);
-        }
-        if (vouchers.findByCodeIgnoreCase("WELCOME20").isEmpty()) {
-            Voucher voucher = new Voucher();
-            voucher.setCode("WELCOME20");
-            voucher.setDiscountPercent(new BigDecimal("20"));
-            voucher.setMinOrderAmount(new BigDecimal("150000"));
-            voucher.setMaxDiscountAmount(new BigDecimal("70000"));
-            voucher.setStartsAt(LocalDateTime.now().minusDays(1));
-            voucher.setExpiresAt(LocalDateTime.now().plusMonths(3));
-            vouchers.save(voucher);
-        }
+        createVoucher("CINE10", "10", "100000", "50000", -2, 180);
+        createVoucher("WELCOME20", "20", "150000", "70000", -2, 90);
+        createVoucher("WEEKEND15", "15", "200000", "80000", -2, 60);
     }
 
-    private void seedConcessionItems() {
-        upsertConcessionItem(
+    private void createVoucher(
+            String code,
+            String percent,
+            String minOrder,
+            String maxDiscount,
+            int startOffsetDays,
+            int expiryOffsetDays) {
+
+        Voucher voucher = new Voucher();
+        voucher.setCode(code);
+        voucher.setDiscountPercent(new BigDecimal(percent));
+        voucher.setMinOrderAmount(new BigDecimal(minOrder));
+        voucher.setMaxDiscountAmount(new BigDecimal(maxDiscount));
+        voucher.setStartsAt(
+                LocalDateTime.now(clock).plusDays(startOffsetDays));
+        voucher.setExpiresAt(
+                LocalDateTime.now(clock).plusDays(expiryOffsetDays));
+
+        vouchers.save(voucher);
+    }
+
+    private void seedConcessions() {
+        createConcession(
                 "Bắp rang bơ",
                 "Bắp rang vị bơ truyền thống, cỡ vừa.",
-                new BigDecimal("55000"));
-        upsertConcessionItem(
+                "55000");
+
+        createConcession(
+                "Bắp caramel",
+                "Bắp rang phủ caramel, cỡ vừa.",
+                "65000");
+
+        createConcession(
                 "Nước ngọt",
                 "Nước ngọt có ga cỡ vừa.",
-                new BigDecimal("35000"));
-        upsertConcessionItem(
+                "35000");
+
+        createConcession(
+                "Nước suối",
+                "Nước suối 500 ml.",
+                "25000");
+
+        createConcession(
                 "Combo CineVerse",
-                "1 bắp rang bơ + 2 nước ngọt, phù hợp cho hai người.",
-                new BigDecimal("99000"));
+                "1 bắp rang bơ + 2 nước ngọt.",
+                "99000");
+
+        createConcession(
+                "Combo Couple",
+                "1 bắp caramel lớn + 2 nước ngọt lớn.",
+                "129000");
     }
 
-    private void upsertConcessionItem(String name, String description, BigDecimal price) {
-        ConcessionItem item = concessionItems.findByNameIgnoreCase(name).orElseGet(ConcessionItem::new);
+    private void createConcession(
+            String name,
+            String description,
+            String price) {
+
+        ConcessionItem item = new ConcessionItem();
+
         item.setName(name);
         item.setDescription(description);
-        item.setPrice(price);
+        item.setPrice(new BigDecimal(price));
         item.setActive(true);
+
         concessionItems.save(item);
     }
 
     private List<Movie> seedMovies() {
+        LocalDate today = LocalDate.now(clock);
+
         List<Movie> result = new ArrayList<>();
-        result.add(upsertMovie("Hành Trình Vượt Không Gian", "Một nhóm phi hành gia bước vào chuyến đi vượt giới hạn để tìm hy vọng mới cho nhân loại.", "Khoa học viễn tưởng, Phiêu lưu", 169, "T13", MovieStatus.NOW_SHOWING, "CineVerse Studio", "Diễn viên A, Diễn viên B", null, new BigDecimal("9.2"), 1840, 12450L));
-        result.add(upsertMovie("Sa Mạc Đỏ", "Cuộc chiến sinh tồn và quyền lực trên một hành tinh khắc nghiệt.", "Khoa học viễn tưởng, Hành động", 156, "T16", MovieStatus.NOW_SHOWING, "Denis Demo", "Diễn viên C, Diễn viên D", null, new BigDecimal("8.8"), 1320, 9820L));
-        result.add(upsertMovie("Người Nhện: Khởi Đầu Mới", "Một chương mới đầy tốc độ, lựa chọn và trách nhiệm của người hùng thành phố.", "Hành động, Phiêu lưu", 142, "T13", MovieStatus.NOW_SHOWING, "Marvel Demo", "Peter Parker, MJ", "/posters/spider-man.webp", new BigDecimal("9.4"), 2450, 15120L));
-        result.add(upsertMovie("Đêm Cuối Ở Sài Gòn", "Một cuộc gặp bất ngờ kéo hai người xa lạ vào hành trình xuyên đêm.", "Tâm lý, Lãng mạn", 118, "T16", MovieStatus.NOW_SHOWING, "CineVerse Studio", "Diễn viên E, Diễn viên F", null, new BigDecimal("8.6"), 920, 7210L));
-        result.add(upsertMovie("Thành Phố Mộng Mơ", "Một câu chuyện nhẹ nhàng về tuổi trẻ, âm nhạc và lựa chọn.", "Tâm lý, Âm nhạc", 128, "T13", MovieStatus.COMING_SOON, "CineVerse Studio", "Diễn viên G, Diễn viên H", null, new BigDecimal("8.9"), 760, 0L));
-        result.add(upsertMovie("Thư Tình Gửi Ngoại", "Những ký ức gia đình được mở ra từ một lá thư cũ và chuyến trở về quê nhà.", "Gia đình, Tâm lý", 124, "T13", MovieStatus.COMING_SOON, "Vietnam Demo", "Diễn viên I, Diễn viên K", "/posters/thu-tinh-gui-ngoai.webp", new BigDecimal("9.1"), 1120, 0L));
-        result.add(upsertMovie("Mật Mã Đại Dương", "Đội thám hiểm phát hiện tín hiệu bí ẩn dưới đáy đại dương sâu.", "Bí ẩn, Phiêu lưu", 135, "T16", MovieStatus.COMING_SOON, "CineVerse Studio", "Diễn viên L, Diễn viên M", null, new BigDecimal("8.7"), 530, 0L));
-        result.add(upsertMovie("Robot Nhỏ Và Bầu Trời", "Một robot sửa chữa bé nhỏ bắt đầu chuyến phiêu lưu tìm lại bầu trời xanh.", "Hoạt hình, Gia đình", 101, "P", MovieStatus.COMING_SOON, "Animation Lab", "Lồng tiếng CineVerse", null, new BigDecimal("9.0"), 880, 0L));
+
+        result.add(createMovie(
+                "Người Mới",
+                "Một người thay đổi cả thành phố.",
+                "Hành động, Phiêu lưu",
+                142,
+                "T13",
+                MovieStatus.NOW_SHOWING,
+                "CineVerse Studio",
+                "Peter, MJ, Miles",
+                "/posters/demo/spiderman.jpg",
+                today.minusDays(18),
+                today.plusDays(24)));
+
+        result.add(createMovie(
+                "Đại Chiến Titan: Hồi Kết",
+                "Trận chiến cuối cùng mở ra khi những bí mật phía sau bức tường được hé lộ.",
+                "Hoạt hình, Hành động",
+                112,
+                "T16",
+                MovieStatus.NOW_SHOWING,
+                "Ocean Studio",
+                "Dàn lồng tiếng CineVerse",
+                "/posters/demo/poster_hanh_trinh_cua_moana_.jpg",
+                today.minusDays(8),
+                today.plusDays(30)));
+
+        result.add(createMovie(
+                "Ngày Tàn Của Phố Oak",
+                "Một khu phố bình yên bị cuốn vào chuỗi sự kiện bí ẩn trong một đêm mất điện.",
+                "Kinh dị, Bí ẩn",
+                126,
+                "T18",
+                MovieStatus.NOW_SHOWING,
+                "Night Lab",
+                "Diễn viên A, Diễn viên B",
+                "/posters/demo/poster_ngay_tan_cua_pho_oak_2.jpg",
+                today.minusDays(6),
+                today.plusDays(21)));
+
+        result.add(createMovie(
+                "Uma Musume: Kỷ Nguyên Mới",
+                "Những vận động viên trẻ theo đuổi giấc mơ chiến thắng.",
+                "Hoạt hình, Thể thao",
+                119,
+                "T13",
+                MovieStatus.NOW_SHOWING,
+                "Hero Works",
+                "Diễn viên C, Diễn viên D",
+                "/posters/demo/agito_adaptation_main_website_470_x_700-.jpg",
+                today.minusDays(15),
+                today.plusDays(14)));
+
+        result.add(createMovie(
+                "Shin: Huyền Thoại Trở Lại",
+                "Một hành trình mới bắt đầu khi thành phố đối diện với sự cố lớn.",
+                "Hoạt hình, Gia đình",
+                96,
+                "P",
+                MovieStatus.NOW_SHOWING,
+                "Family Studio",
+                "Dàn lồng tiếng CineVerse",
+                "/posters/demo/470x700-paw.jpg",
+                today.minusDays(3),
+                today.plusDays(35)));
+
+        result.add(createMovie(
+                "Cánh Đồng Ngược Gió",
+                "Một người trở về quê nhà và tìm thấy câu trả lời lâu từng bỏ lỡ.",
+                "Tâm lý, Gia đình",
+                121,
+                "T13",
+                MovieStatus.NOW_SHOWING,
+                "Lotus Film",
+                "Diễn viên G, Diễn viên H",
+                "/posters/demo/c_n_ng_ng_ng_o_poster_social.jpg",
+                today.minusDays(10),
+                today.plusDays(20)));
+
+        result.add(createMovie(
+                "Chuyến Tàu 03512",
+                "Những hành khách xa lạ bị mắc kẹt trên chuyến tàu đêm đầy bí ẩn.",
+                "Bí ẩn, Giật gân",
+                128,
+                "T16",
+                MovieStatus.NOW_SHOWING,
+                "Railway Films",
+                "Diễn viên I, Diễn viên K",
+                "/posters/demo/HO00003512.jpg",
+                today.minusDays(5),
+                today.plusDays(25)));
+
+        result.add(createMovie(
+                "Mật Mã 03531",
+                "Một nhóm chuyên gia lần theo những ký hiệu dẫn tới âm mưu bị che giấu nhiều năm.",
+                "Trinh thám, Hành động",
+                137,
+                "T16",
+                MovieStatus.NOW_SHOWING,
+                "Cipher Studio",
+                "Diễn viên L, Diễn viên M",
+                "/posters/demo/HO00003531.jpg",
+                today.minusDays(7),
+                today.plusDays(19)));
+
+        result.add(createMovie(
+                "Bầu Trời Xa",
+                "Một câu chuyện về những lựa chọn và ký ức chưa thể buông bỏ.",
+                "Tình cảm, Tâm lý",
+                116,
+                "T13",
+                MovieStatus.NOW_SHOWING,
+                "Blue Sky Film",
+                "Diễn viên N, Diễn viên O",
+                "/posters/demo/HO00003539.jpg",
+                today.minusDays(2),
+                today.plusDays(32)));
+
+        result.add(createMovie(
+                "Ký Ức Mùa Hạ",
+                "Một nhóm bạn trở lại nơi họ từng lớn lên và đối diện những ký ức chưa khép lại.",
+                "Tâm lý, Thanh xuân",
+                124,
+                "T13",
+                MovieStatus.COMING_SOON,
+                "Summer House",
+                "Diễn viên P, Diễn viên Q",
+                "/posters/demo/HO00003569.jpg",
+                today.plusDays(5),
+                today.plusDays(40)));
+
+        result.add(createMovie(
+                "Hành Tinh Lạ",
+                "Tín hiệu từ một hành tinh xa xôi kéo đoàn thám hiểm vào cuộc phiêu lưu chưa từng có.",
+                "Khoa học viễn tưởng, Phiêu lưu",
+                151,
+                "T13",
+                MovieStatus.COMING_SOON,
+                "Nova Studio",
+                "Diễn viên R, Diễn viên S",
+                "/posters/demo/HO00003591.jpg",
+                today.plusDays(8),
+                today.plusDays(45)));
+
+        result.add(createMovie(
+                "Thành Phố Không Ngủ",
+                "Một đêm duy nhất kết nối nhiều số phận trong thành phố rực sáng.",
+                "Tâm lý, Tội phạm",
+                132,
+                "T16",
+                MovieStatus.COMING_SOON,
+                "Metro Films",
+                "Diễn viên T, Diễn viên U",
+                "/posters/demo/HO00003623.jpg",
+                today.plusDays(12),
+                today.plusDays(48)));
+
+        result.add(createMovie(
+                "Khi Chúng Ta Gặp Lại",
+                "Một cuộc hội ngộ bất ngờ khiến mọi lựa chọn cũ được nhìn lại.",
+                "Tình cảm, Tâm lý",
+                118,
+                "T13",
+                MovieStatus.COMING_SOON,
+                "Heart Studio",
+                "Diễn viên V, Diễn viên W",
+                "/posters/demo/kijsada-teaser_poster-700x1000.jpg",
+                today.plusDays(15),
+                today.plusDays(50)));
+
+        result.add(createMovie(
+                "Odyssey: Dấu Chân Hoang Dã",
+                "Một hành trình băng qua vùng đất rộng lớn để đưa sinh vật quý hiếm trở về nhà.",
+                "Phiêu lưu, Gia đình",
+                127,
+                "P",
+                MovieStatus.COMING_SOON,
+                "Odyssey Works",
+                "Diễn viên X, Diễn viên Y",
+                "/posters/demo/ody_horseposter_470x700.jpg",
+                today.plusDays(18),
+                today.plusDays(55)));
+
         return result;
     }
 
-    private Movie upsertMovie(String title, String description, String genres, int duration, String ageRating,
-            MovieStatus status, String director, String castNames, String posterUrl, BigDecimal rating,
-            int reviewCount, long ticketsSold) {
-        Movie movie = movies.findByTitle(title).orElseGet(Movie::new);
+    private Movie createMovie(
+            String title,
+            String description,
+            String genres,
+            int durationMinutes,
+            String ageRating,
+            MovieStatus status,
+            String director,
+            String castNames,
+            String posterUrl,
+            LocalDate releaseDate,
+            LocalDate endDate) {
+
+        Movie movie = new Movie();
+
         movie.setTitle(title);
         movie.setDescription(description);
         movie.setGenres(genres);
-        movie.setDurationMinutes(duration);
+        movie.setDurationMinutes(durationMinutes);
         movie.setAgeRating(ageRating);
-        movie.setReleaseDate(status == MovieStatus.COMING_SOON
-                ? LocalDate.now().plusDays(30)
-                : LocalDate.now().minusDays(7));
+        movie.setStatus(status);
         movie.setDirector(director);
         movie.setCastNames(castNames);
         movie.setPosterUrl(posterUrl);
+        movie.setBackdropUrl(posterUrl);
         movie.setTrailerUrl(DEMO_TRAILER);
-        movie.setRatingAverage(rating);
-        movie.setReviewCount(reviewCount);
-        long currentTicketsSold = movie.getTicketsSold() == null ? 0L : movie.getTicketsSold();
-        movie.setTicketsSold(Math.max(currentTicketsSold, ticketsSold));
-        movie.setStatus(status);
+        movie.setReleaseDate(releaseDate);
+        movie.setEndDate(endDate);
+
         return movies.save(movie);
     }
 
-    private Room ensureCinemaAndRoom() {
-        Cinema cinema = cinemas.findAll().stream().findFirst().orElseGet(() -> {
-            Cinema c = new Cinema();
-            c.setName("CineVerse Ninh Kiều");
-            c.setAddress("Ninh Kiều, Cần Thơ");
-            return cinemas.save(c);
-        });
-        return rooms.findAll().stream().filter(r -> r.getCinema().getId().equals(cinema.getId())).findFirst().orElseGet(() -> {
-            Room room = new Room();
-            room.setCinema(cinema);
-            room.setName("Phòng 01");
-            room.setRowCount(DEFAULT_ROWS);
-            room.setSeatsPerRow(DEFAULT_SEATS_PER_ROW);
-            room.setWeekdayBasePrice(new BigDecimal("70000"));
-            room.setWeekendBasePrice(new BigDecimal("100000"));
-            room.setVipSurcharge(new BigDecimal("20000"));
-            return rooms.save(room);
-        });
+    private List<Room> seedCinemasAndRooms() {
+        List<Room> result = new ArrayList<>();
+
+        Cinema ninhKieu = createCinema(
+                "CineVerse Ninh Kiều",
+                "12 Đại lộ Hòa Bình, Ninh Kiều, Cần Thơ");
+
+        Cinema caiRang = createCinema(
+                "CineVerse Cái Răng",
+                "88 Võ Nguyên Giáp, Cái Răng, Cần Thơ");
+
+        Cinema binhThuy = createCinema(
+                "CineVerse Bình Thủy",
+                "120 Cách Mạng Tháng Tám, Bình Thủy, Cần Thơ");
+
+        Cinema oMon = createCinema(
+                "CineVerse Ô Môn",
+                "35 Châu Văn Liêm, Ô Môn, Cần Thơ");
+
+        Cinema thotNot = createCinema(
+                "CineVerse Thốt Nốt",
+                "210 Quốc lộ 91, Thốt Nốt, Cần Thơ");
+
+        result.add(createRoom(
+                ninhKieu,
+                "IMAX 01",
+                10,
+                14,
+                "90000",
+                "120000",
+                "30000"));
+
+        result.add(createRoom(
+                ninhKieu,
+                "Cinema 02",
+                8,
+                10,
+                "70000",
+                "100000",
+                "20000"));
+
+        result.add(createRoom(
+                caiRang,
+                "Premium 01",
+                9,
+                12,
+                "80000",
+                "110000",
+                "25000"));
+
+        result.add(createRoom(
+                caiRang,
+                "Cinema 02",
+                7,
+                10,
+                "65000",
+                "90000",
+                "20000"));
+
+        result.add(createRoom(
+                binhThuy,
+                "Cinema 01",
+                8,
+                12,
+                "70000",
+                "95000",
+                "20000"));
+
+        result.add(createRoom(
+                binhThuy,
+                "Mini 02",
+                6,
+                8,
+                "60000",
+                "80000",
+                "15000"));
+
+        result.add(createRoom(
+                oMon,
+                "Cinema 01",
+                8,
+                10,
+                "65000",
+                "90000",
+                "20000"));
+
+        result.add(createRoom(
+                oMon,
+                "Mini 02",
+                6,
+                6,
+                "55000",
+                "75000",
+                "15000"));
+
+        result.add(createRoom(
+                thotNot,
+                "Cinema 01",
+                7,
+                10,
+                "60000",
+                "85000",
+                "18000"));
+
+        result.add(createRoom(
+                thotNot,
+                "Cinema 02",
+                6,
+                8,
+                "60000",
+                "85000",
+                "18000"));
+
+        return result;
     }
 
-    private void normalizeRoomConfiguration() {
-        for (Room room : rooms.findAll()) {
-            List<Seat> roomSeats = seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId());
-            int rowsCount = roomSeats.isEmpty()
-                    ? DEFAULT_ROWS
-                    : roomSeats.stream().mapToInt(Seat::getRowIndex).max().orElse(DEFAULT_ROWS - 1) + 1;
-            int seatsPerRow = roomSeats.isEmpty()
-                    ? DEFAULT_SEATS_PER_ROW
-                    : roomSeats.stream().mapToInt(Seat::getColumnIndex).max()
-                            .orElse(DEFAULT_SEATS_PER_ROW - 1) + 1;
-            room.setRowCount(Math.max(6, rowsCount));
-            room.setSeatsPerRow(Math.max(6, seatsPerRow));
-            if (room.getWeekdayBasePrice() == null) {
-                room.setWeekdayBasePrice(new BigDecimal("70000"));
-            }
-            if (room.getWeekendBasePrice() == null) {
-                room.setWeekendBasePrice(new BigDecimal("100000"));
-            }
-            if (room.getVipSurcharge() == null) {
-                room.setVipSurcharge(new BigDecimal("20000"));
-            }
-        }
+    private Cinema createCinema(
+            String name,
+            String address) {
+
+        Cinema cinema = new Cinema();
+
+        cinema.setName(name);
+        cinema.setAddress(address);
+        cinema.setActive(true);
+
+        return cinemas.save(cinema);
     }
 
-    private void ensureSeats(Room room) {
-        List<Seat> existingSeats = seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId());
-        if (!existingSeats.isEmpty()) {
-            for (Seat seat : existingSeats) {
-                SeatType expectedType = isVipSeat(
-                        seat.getRowIndex(),
-                        seat.getColumnIndex(),
-                        room.getRowCount(),
-                        room.getSeatsPerRow())
-                        ? SeatType.VIP
-                        : SeatType.NORMAL;
-                if (seat.getType() != expectedType) {
-                    seat.setType(expectedType);
-                    seats.save(seat);
-                }
-            }
-            return;
-        }
-        for (int rowIndex = 0; rowIndex < room.getRowCount(); rowIndex++) {
-            char rowLetter = (char) ('A' + rowIndex);
-            for (int seatNumber = 1; seatNumber <= room.getSeatsPerRow(); seatNumber++) {
+    private Room createRoom(
+            Cinema cinema,
+            String name,
+            int rowCount,
+            int seatsPerRow,
+            String weekday,
+            String weekend,
+            String vipSurcharge) {
+
+        Room room = new Room();
+
+        room.setCinema(cinema);
+        room.setName(name);
+        room.setActive(true);
+        room.setRowCount(rowCount);
+        room.setSeatsPerRow(seatsPerRow);
+        room.setWeekdayBasePrice(new BigDecimal(weekday));
+        room.setWeekendBasePrice(new BigDecimal(weekend));
+        room.setVipSurcharge(new BigDecimal(vipSurcharge));
+
+        room = rooms.save(room);
+
+        createSeats(room);
+
+        return room;
+    }
+
+    private void createSeats(Room room) {
+        for (int row = 0; row < room.getRowCount(); row++) {
+
+            for (int column = 0;
+                    column < room.getSeatsPerRow();
+                    column++) {
+
                 Seat seat = new Seat();
+
                 seat.setRoom(room);
-                seat.setSeatCode(rowLetter + String.valueOf(seatNumber));
-                seat.setRowIndex(rowIndex);
-                seat.setColumnIndex(seatNumber - 1);
-                seat.setType(isVipSeat(
-                        rowIndex,
-                        seatNumber - 1,
-                        room.getRowCount(),
-                        room.getSeatsPerRow())
-                        ? SeatType.VIP
-                        : SeatType.NORMAL);
+                seat.setRowIndex(row);
+                seat.setColumnIndex(column);
+
+                seat.setSeatCode(
+                        String.valueOf((char) ('A' + row))
+                                + (column + 1));
+
+                seat.setType(
+                        isVipSeat(
+                                row,
+                                column,
+                                room.getRowCount(),
+                                room.getSeatsPerRow())
+                                ? SeatType.VIP
+                                : SeatType.NORMAL);
+
+                seat.setActive(true);
+
                 seats.save(seat);
-            }
-        }
-    }
-
-    private void normalizeExistingRoomSeats() {
-        for (Room room : rooms.findAll()) {
-            List<Seat> roomSeats = seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId());
-            if (roomSeats.isEmpty()) {
-                continue;
-            }
-
-            int rowsCount = roomSeats.stream()
-                    .mapToInt(Seat::getRowIndex)
-                    .max()
-                    .orElse(0) + 1;
-            int seatsPerRow = roomSeats.stream()
-                    .mapToInt(Seat::getColumnIndex)
-                    .max()
-                    .orElse(0) + 1;
-            room.setRowCount(rowsCount);
-            room.setSeatsPerRow(seatsPerRow);
-
-            for (Seat seat : roomSeats) {
-                SeatType expectedType = isVipSeat(
-                        seat.getRowIndex(),
-                        seat.getColumnIndex(),
-                        rowsCount,
-                        seatsPerRow)
-                        ? SeatType.VIP
-                        : SeatType.NORMAL;
-                if (seat.getType() != expectedType) {
-                    seat.setType(expectedType);
-                    seats.save(seat);
-                }
             }
         }
     }
@@ -303,38 +659,150 @@ public class DataInitializer implements CommandLineRunner {
             int columnIndex,
             int rowsCount,
             int seatsPerRow) {
-        boolean hasVipCore = rowsCount >= 6 && seatsPerRow >= 6;
-        boolean vipRow = rowIndex >= 2 && rowIndex < rowsCount - 2;
-        boolean vipColumn = columnIndex >= 2 && columnIndex < seatsPerRow - 2;
-        return hasVipCore && vipRow && vipColumn;
+
+        return rowsCount >= 6
+                && seatsPerRow >= 6
+                && rowIndex >= 2
+                && rowIndex < rowsCount - 2
+                && columnIndex >= 2
+                && columnIndex < seatsPerRow - 2;
     }
 
-    private void seedShowtimes(List<Movie> movieList, Room room) {
-        List<Seat> roomSeats = seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(room.getId());
-        int[] hours = {10, 13, 16, 19, 22};
-        int index = 0;
-        for (Movie movie : movieList.stream().filter(m -> m.getStatus() == MovieStatus.NOW_SHOWING).toList()) {
-            for (int day = 1; day <= 3; day++) {
-                LocalDateTime start = LocalDate.now().plusDays(day).atTime(hours[(index + day) % hours.length], 0);
-                Showtime showtime = new Showtime();
-                showtime.setMovie(movie);
-                showtime.setRoom(room);
-                showtime.setStartTime(start);
-                showtime.setEndTime(start.plusMinutes(movie.getDurationMinutes()));
-                boolean weekend = start.getDayOfWeek().getValue() >= 6;
-                BigDecimal basePrice = weekend
-                        ? room.getWeekendBasePrice()
-                        : room.getWeekdayBasePrice();
-                showtime.setBasePrice(basePrice);
-                showtime = showtimes.save(showtime);
-                for (Seat seat : roomSeats) {
-                    ShowtimeSeat item = new ShowtimeSeat();
-                    item.setShowtime(showtime);
-                    item.setSeat(seat);
-                    showtimeSeats.save(item);
-                }
+    private void seedShowtimes(
+            List<Movie> movieList,
+            List<Room> roomList) {
+
+        LocalDateTime now = LocalDateTime
+                .now(clock)
+                .withSecond(0)
+                .withNano(0);
+
+        List<Movie> activeMovies = movieList.stream()
+                .filter(movie ->
+                        movie.getStatus()
+                                == MovieStatus.NOW_SHOWING)
+                .toList();
+
+        int movieIndex = 0;
+        int roomIndex = 0;
+
+        for (int dayOffset = -2;
+                dayOffset <= 4;
+                dayOffset++) {
+
+            int[] hours = {9, 12, 15, 18, 21};
+
+            for (int hour : hours) {
+
+                Room room =
+                        roomList.get(
+                                roomIndex++
+                                        % roomList.size());
+
+                Movie movie =
+                        activeMovies.get(
+                                movieIndex++
+                                        % activeMovies.size());
+
+                LocalDateTime start =
+                        now.toLocalDate()
+                                .plusDays(dayOffset)
+                                .atTime(
+                                        hour,
+                                        (roomIndex % 2) * 15);
+
+                createShowtime(
+                        movie,
+                        room,
+                        start,
+                        true);
             }
-            index++;
+        }
+
+        createShowtime(
+                activeMovies.get(0),
+                roomList.get(0),
+                now.minusMinutes(10),
+                true);
+
+        createShowtime(
+                activeMovies.get(1),
+                roomList.get(1),
+                now.minusMinutes(45),
+                true);
+
+        createShowtime(
+                activeMovies.get(2),
+                roomList.get(2),
+                now.plusMinutes(40),
+                true);
+
+        createShowtime(
+                activeMovies.get(3),
+                roomList.get(3),
+                now.plusHours(2),
+                true);
+
+        createShowtime(
+                activeMovies.get(4),
+                roomList.get(4),
+                now.plusHours(5),
+                false);
+    }
+
+    private void createShowtime(
+            Movie movie,
+            Room room,
+            LocalDateTime start,
+            boolean active) {
+
+        LocalDateTime end =
+                start.plusMinutes(
+                        movie.getDurationMinutes());
+
+        if (showtimes.hasConflict(
+                room.getId(),
+                start,
+                end,
+                null)) {
+
+            return;
+        }
+
+        Showtime showtime = new Showtime();
+
+        showtime.setMovie(movie);
+        showtime.setRoom(room);
+        showtime.setStartTime(start);
+        showtime.setEndTime(end);
+
+        boolean weekend =
+                start.getDayOfWeek()
+                        .getValue() >= 6;
+
+        showtime.setBasePrice(
+                weekend
+                        ? room.getWeekendBasePrice()
+                        : room.getWeekdayBasePrice());
+
+        showtime.setActive(active);
+
+        showtime =
+                showtimes.save(showtime);
+
+        List<Seat> roomSeats =
+                seats.findAllByRoomIdOrderByRowIndexAscColumnIndexAsc(
+                        room.getId());
+
+        for (Seat seat : roomSeats) {
+
+            ShowtimeSeat showtimeSeat =
+                    new ShowtimeSeat();
+
+            showtimeSeat.setShowtime(showtime);
+            showtimeSeat.setSeat(seat);
+
+            showtimeSeats.save(showtimeSeat);
         }
     }
 }

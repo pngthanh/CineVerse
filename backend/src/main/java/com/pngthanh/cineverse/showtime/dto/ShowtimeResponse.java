@@ -13,6 +13,9 @@ public record ShowtimeResponse(
         String roomName,
         LocalDateTime startTime,
         LocalDateTime endTime,
+        LocalDateTime salesCloseTime,
         BigDecimal basePrice,
-        boolean active) {
+        boolean active,
+        String lifecycleStatus,
+        boolean bookable) {
 }

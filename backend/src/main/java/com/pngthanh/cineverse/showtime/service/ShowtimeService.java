@@ -5,6 +5,7 @@ import com.pngthanh.cineverse.cinema.entity.Room;
 import com.pngthanh.cineverse.cinema.entity.Seat;
 import com.pngthanh.cineverse.cinema.repository.SeatRepository;
 import com.pngthanh.cineverse.cinema.service.CinemaService;
+import com.pngthanh.cineverse.common.enums.ShowtimeLifecycleStatus;
 import com.pngthanh.cineverse.common.enums.ShowtimeSeatStatus;
 import com.pngthanh.cineverse.common.exception.ApiException;
 import com.pngthanh.cineverse.movie.entity.Movie;
@@ -17,9 +18,12 @@ import com.pngthanh.cineverse.showtime.entity.ShowtimeSeat;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeRepository;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeSeatRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,8 @@ public class ShowtimeService {
     private final MovieService movies;
     private final CinemaService cinemas;
     private final PricingService pricing;
+    private final Clock clock;
+    private final long salesCutoffMinutes;
 
     public ShowtimeService(
             ShowtimeRepository showtimes,
@@ -39,17 +45,22 @@ public class ShowtimeService {
             SeatRepository seats,
             MovieService movies,
             CinemaService cinemas,
-            PricingService pricing) {
+            PricingService pricing,
+            Clock clock,
+            @Value("${app.booking.sales-cutoff-minutes:20}") long salesCutoffMinutes) {
         this.showtimes = showtimes;
         this.showtimeSeats = showtimeSeats;
         this.seats = seats;
         this.movies = movies;
         this.cinemas = cinemas;
         this.pricing = pricing;
+        this.clock = clock;
+        this.salesCutoffMinutes = salesCutoffMinutes;
     }
 
     @Transactional(readOnly = true)
     public List<ShowtimeResponse> list(Long movieId, Long cinemaId, LocalDate date) {
+        LocalDateTime now = LocalDateTime.now(clock);
         List<Showtime> data;
         if (movieId != null && cinemaId != null) {
             data = showtimes.findAllByMovieIdAndRoomCinemaIdAndActiveTrueOrderByStartTime(
@@ -64,12 +75,34 @@ public class ShowtimeService {
 
         return data.stream()
                 .filter(showtime -> date == null || showtime.getStartTime().toLocalDate().equals(date))
-                .map(this::toResponse)
+                .filter(showtime -> isBookable(showtime, now))
+                .map(showtime -> toResponse(showtime, now))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ShowtimeResponse> listAdmin(Long movieId, Long cinemaId, LocalDate date) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        return showtimes.findAll().stream()
+                .filter(showtime -> movieId == null || showtime.getMovie().getId().equals(movieId))
+                .filter(showtime -> cinemaId == null
+                        || showtime.getRoom().getCinema().getId().equals(cinemaId))
+                .filter(showtime -> date == null || showtime.getStartTime().toLocalDate().equals(date))
+                .sorted(Comparator.comparing(Showtime::getStartTime).reversed())
+                .map(showtime -> toResponse(showtime, now))
                 .toList();
     }
 
     @Transactional
     public ShowtimeResponse create(ShowtimeRequest request) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!request.startTime().isAfter(now)) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "SHOWTIME_START_IN_PAST",
+                    "Suất chiếu phải bắt đầu ở thời điểm tương lai.");
+        }
+
         Movie movie = movies.require(request.movieId());
         Room room = cinemas.requireRoom(request.roomId());
         if (!room.isActive() || !room.getCinema().isActive()) {
@@ -108,12 +141,12 @@ public class ShowtimeService {
             showtimeSeat.setStatus(ShowtimeSeatStatus.AVAILABLE);
             showtimeSeats.save(showtimeSeat);
         }
-        return toResponse(showtime);
+        return toResponse(showtime, now);
     }
 
     @Transactional(readOnly = true)
     public SeatMapResponse seatMap(Long id) {
-        Showtime showtime = require(id);
+        Showtime showtime = requireBookable(id);
         List<SeatMapResponse.SeatItem> items = showtimeSeats
                 .findAllByShowtimeIdOrderBySeatRowIndexAscSeatColumnIndexAsc(id)
                 .stream()
@@ -142,7 +175,56 @@ public class ShowtimeService {
                         "Không tìm thấy suất chiếu."));
     }
 
+    public Showtime requireBookable(Long id) {
+        Showtime showtime = require(id);
+        if (!isBookable(showtime, LocalDateTime.now(clock))) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "SHOWTIME_SALES_CLOSED",
+                    "Suất chiếu này đã đóng bán vé.");
+        }
+        return showtime;
+    }
+
+    public boolean isBookable(Showtime showtime) {
+        return isBookable(showtime, LocalDateTime.now(clock));
+    }
+
+    public ShowtimeLifecycleStatus lifecycleStatus(Showtime showtime) {
+        return lifecycleStatus(showtime, LocalDateTime.now(clock));
+    }
+
     public ShowtimeResponse toResponse(Showtime showtime) {
+        return toResponse(showtime, LocalDateTime.now(clock));
+    }
+
+    private boolean isBookable(Showtime showtime, LocalDateTime now) {
+        return showtime.isActive()
+                && now.isBefore(salesCloseTime(showtime))
+                && now.isBefore(showtime.getEndTime());
+    }
+
+    private ShowtimeLifecycleStatus lifecycleStatus(Showtime showtime, LocalDateTime now) {
+        if (!showtime.isActive()) {
+            return ShowtimeLifecycleStatus.CANCELLED;
+        }
+        if (now.isBefore(showtime.getStartTime())) {
+            return ShowtimeLifecycleStatus.UPCOMING;
+        }
+        if (now.isBefore(showtime.getEndTime())) {
+            return ShowtimeLifecycleStatus.NOW_PLAYING;
+        }
+        return ShowtimeLifecycleStatus.ENDED;
+    }
+
+    private LocalDateTime salesCloseTime(Showtime showtime) {
+        LocalDateTime configuredClose = showtime.getStartTime().plusMinutes(salesCutoffMinutes);
+        return configuredClose.isBefore(showtime.getEndTime())
+                ? configuredClose
+                : showtime.getEndTime();
+    }
+
+    private ShowtimeResponse toResponse(Showtime showtime, LocalDateTime now) {
         return new ShowtimeResponse(
                 showtime.getId(),
                 showtime.getMovie().getId(),
@@ -153,7 +235,10 @@ public class ShowtimeService {
                 showtime.getRoom().getName(),
                 showtime.getStartTime(),
                 showtime.getEndTime(),
+                salesCloseTime(showtime),
                 showtime.getBasePrice(),
-                showtime.isActive());
+                showtime.isActive(),
+                lifecycleStatus(showtime, now).name(),
+                isBookable(showtime, now));
     }
 }

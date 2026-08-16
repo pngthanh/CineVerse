@@ -13,6 +13,7 @@ public record MovieRequest(
         @NotBlank String genres,
         @NotNull @Min(1) Integer durationMinutes,
         LocalDate releaseDate,
+        LocalDate endDate,
         String director,
         String castNames,
         String ageRating,

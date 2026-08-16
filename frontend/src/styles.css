@@ -277,3 +277,22 @@
 
 @media(max-width:1150px){.cinema-management-grid,.dashboard-grid-two{grid-template-columns:1fr}.admin-room-card{grid-template-columns:1fr}.room-actions{justify-content:flex-start}.dashboard-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.room-price-grid,.showtime-pricing-preview,.admin-room-prices,.dashboard-kpi-grid,.dashboard-detail-grid{grid-template-columns:1fr}.cinema-admin-card-head,.dashboard-title-row{flex-direction:column;align-items:stretch}.dashboard-title-row select{width:100%}.admin-inline-actions{width:100%}.admin-inline-actions .btn{flex:1}.dashboard-ranking-row{grid-template-columns:1fr}.dashboard-movie-row{grid-template-columns:28px 40px minmax(0,1fr)}.dashboard-movie-row>strong:last-child{grid-column:3}.cinema-management-grid{grid-template-columns:1fr}}
+
+
+/* Realtime showtime lifecycle */
+.showtime-live-note{display:inline-flex;margin-top:7px;color:#f3cf81;font-weight:700}.admin-showtime-filters{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.admin-showtime-filters select{width:auto;min-width:180px}.admin-showtime-chip{grid-template-columns:minmax(0,1fr) auto;min-width:210px}.admin-showtime-chip strong{padding-right:30px}.admin-showtime-chip em{grid-column:1/-1;width:max-content;margin-top:5px;padding:4px 7px;border-radius:999px;font-style:normal;font-size:10px;font-weight:800;background:#282c35;border:1px solid var(--border);color:#cdd3dc}.admin-showtime-chip.showtime-upcoming em{background:#173223;border-color:#2f6947;color:#aef0c4}.admin-showtime-chip.showtime-now_playing em{background:#3e321b;border-color:#735d2f;color:#f3cf81}.admin-showtime-chip.showtime-ended{opacity:.66}.admin-showtime-chip.showtime-cancelled{opacity:.66}.admin-showtime-chip.showtime-cancelled em{background:#3b1c1e;border-color:#743439;color:#ffb4b4}@media(max-width:700px){.admin-showtime-filters{width:100%;justify-content:stretch}.admin-showtime-filters select{width:100%}}
+
+
+/* Admin movie media management */
+.admin-movie-grid { align-items: start; }
+.admin-movie-form { min-width: 0; }
+.admin-media-fields { display: grid; gap: 12px; }
+.file-upload { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px dashed rgba(255,255,255,.24); border-radius: 12px; cursor: pointer; color: var(--text); background: rgba(255,255,255,.035); }
+.file-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.admin-media-preview { display: block; max-width: 100%; border-radius: 14px; object-fit: cover; border: 1px solid rgba(255,255,255,.1); }
+.poster-preview { width: 150px; aspect-ratio: 2 / 3; }
+.banner-preview { width: 100%; max-height: 180px; aspect-ratio: 16 / 6; }
+.admin-movie-cell { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+.admin-movie-cell img { width: 44px; height: 62px; object-fit: cover; border-radius: 8px; }
+.admin-movie-cell small { display: block; margin-top: 4px; color: var(--muted); }
+.detail-hero { background-repeat: no-repeat; }

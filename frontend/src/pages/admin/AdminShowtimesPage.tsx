@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../../lib/api';
-import { dateTime, money, timeOnly } from '../../lib/format';
+import { dateTime, money, statusLabel } from '../../lib/format';
 import type { Cinema, Movie, Showtime } from '../../types';
 
 export function AdminShowtimesPage() {
@@ -12,11 +12,12 @@ export function AdminShowtimesPage() {
     const [roomId, setRoomId] = useState('');
     const [startTime, setStartTime] = useState('');
     const [filterMovieId, setFilterMovieId] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        void Promise.all([api<Movie[]>('/movies'), api<Cinema[]>('/cinemas')])
+        void Promise.all([api<Movie[]>('/admin/movies'), api<Cinema[]>('/admin/cinemas')])
             .then(([movieData, cinemaData]) => {
                 setMovies(movieData);
                 setCinemas(cinemaData);
@@ -40,7 +41,7 @@ export function AdminShowtimesPage() {
 
     useEffect(() => {
         if (!cinemaId) return;
-        void api<Showtime[]>(`/showtimes?cinemaId=${cinemaId}`)
+        void api<Showtime[]>(`/admin/showtimes?cinemaId=${cinemaId}`)
             .then(setShowtimes)
             .catch(() => setError('Không thể tải lịch chiếu.'));
     }, [cinemaId]);
@@ -53,7 +54,7 @@ export function AdminShowtimesPage() {
 
     const reload = async () => {
         if (!cinemaId) return;
-        setShowtimes(await api<Showtime[]>(`/showtimes?cinemaId=${cinemaId}`));
+        setShowtimes(await api<Showtime[]>(`/admin/showtimes?cinemaId=${cinemaId}`));
     };
 
     const submit = async (event: FormEvent) => {
@@ -88,9 +89,11 @@ export function AdminShowtimesPage() {
         }
     };
 
-    const visibleShowtimes = filterMovieId
-        ? showtimes.filter((showtime) => showtime.movieId === Number(filterMovieId))
-        : showtimes;
+    const visibleShowtimes = showtimes.filter((showtime) => {
+        const matchesMovie = !filterMovieId || showtime.movieId === Number(filterMovieId);
+        const matchesStatus = !filterStatus || showtime.lifecycleStatus === filterStatus;
+        return matchesMovie && matchesStatus;
+    });
 
     const grouped = visibleShowtimes.reduce<Map<number, Showtime[]>>((map, showtime) => {
         const items = map.get(showtime.movieId) ?? [];
@@ -103,7 +106,7 @@ export function AdminShowtimesPage() {
         <div className="admin-page">
             <div className="page-title">
                 <h1>Suất chiếu</h1>
-                <p>Máy chủ kiểm tra lịch trùng và tự lấy giá cơ bản từ cấu hình phòng.</p>
+                <p>Quản lý đầy đủ suất sắp chiếu, đang chiếu, đã kết thúc và đã hủy theo thời gian thực.</p>
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}
@@ -158,10 +161,19 @@ export function AdminShowtimesPage() {
                             <h2>Lịch chiếu theo phim</h2>
                             <p>{selectedCinema?.name ?? 'Chưa chọn rạp'}</p>
                         </div>
-                        <select value={filterMovieId} onChange={(event) => setFilterMovieId(event.target.value)}>
-                            <option value="">Tất cả phim</option>
-                            {movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}
-                        </select>
+                        <div className="admin-showtime-filters">
+                            <select value={filterMovieId} onChange={(event) => setFilterMovieId(event.target.value)}>
+                                <option value="">Tất cả phim</option>
+                                {movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}
+                            </select>
+                            <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="UPCOMING">Sắp chiếu</option>
+                                <option value="NOW_PLAYING">Đang chiếu</option>
+                                <option value="ENDED">Đã kết thúc</option>
+                                <option value="CANCELLED">Đã hủy</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="admin-movie-showtime-list">
@@ -185,11 +197,14 @@ export function AdminShowtimesPage() {
                                         </div>
                                         <div className="admin-showtime-chips">
                                             {items.map((showtime) => (
-                                                <div className="admin-showtime-chip" key={showtime.id}>
-                                                    <strong>{timeOnly(showtime.startTime)}</strong>
+                                                <div className={`admin-showtime-chip showtime-${showtime.lifecycleStatus.toLowerCase()}`} key={showtime.id}>
+                                                    <strong>{dateTime(showtime.startTime)}</strong>
                                                     <span>{showtime.roomName}</span>
                                                     <small>{money(showtime.basePrice)}</small>
-                                                    <button type="button" onClick={() => void cancel(showtime)}>Hủy</button>
+                                                    <em>{statusLabel(showtime.lifecycleStatus)}</em>
+                                                    {showtime.lifecycleStatus !== 'ENDED' && showtime.lifecycleStatus !== 'CANCELLED' && (
+                                                        <button type="button" onClick={() => void cancel(showtime)}>Hủy</button>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>

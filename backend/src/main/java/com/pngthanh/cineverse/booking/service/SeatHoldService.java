@@ -47,7 +47,7 @@ public class SeatHoldService {
     @Transactional
     public SeatHoldResponse hold(String email, SeatHoldRequest request) {
         User user = users.requireByEmail(email);
-        Showtime showtime = showtimes.require(request.showtimeId());
+        Showtime showtime = showtimes.requireBookable(request.showtimeId());
         List<Long> uniqueIds = request.seatIds().stream().distinct().sorted().toList();
         List<ShowtimeSeat> lockedSeats = seats.findForUpdate(showtime.getId(), uniqueIds);
 

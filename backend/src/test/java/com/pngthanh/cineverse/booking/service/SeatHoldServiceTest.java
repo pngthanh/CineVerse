@@ -48,7 +48,7 @@ class SeatHoldServiceTest {
 
         Showtime showtime = mock(Showtime.class);
         when(showtime.getId()).thenReturn(20L);
-        when(showtimes.require(20L)).thenReturn(showtime);
+        when(showtimes.requireBookable(20L)).thenReturn(showtime);
 
         Seat seat = mock(Seat.class);
         when(seat.getId()).thenReturn(30L);
@@ -83,7 +83,7 @@ class SeatHoldServiceTest {
 
         Showtime showtime = mock(Showtime.class);
         when(showtime.getId()).thenReturn(20L);
-        when(showtimes.require(20L)).thenReturn(showtime);
+        when(showtimes.requireBookable(20L)).thenReturn(showtime);
 
         Seat seat = mock(Seat.class);
         when(seat.getId()).thenReturn(30L);

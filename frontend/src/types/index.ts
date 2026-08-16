@@ -23,6 +23,7 @@ export interface Movie {
     genres: string;
     durationMinutes: number;
     releaseDate?: string;
+    endDate?: string;
     director?: string;
     castNames?: string;
     ageRating?: string;
@@ -66,8 +67,11 @@ export interface Showtime {
     roomName: string;
     startTime: string;
     endTime: string;
+    salesCloseTime: string;
     basePrice: number;
     active: boolean;
+    lifecycleStatus: 'UPCOMING' | 'NOW_PLAYING' | 'ENDED' | 'CANCELLED';
+    bookable: boolean;
 }
 
 export interface SeatItem {

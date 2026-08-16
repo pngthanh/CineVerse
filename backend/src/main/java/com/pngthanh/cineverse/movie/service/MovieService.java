@@ -66,6 +66,7 @@ public class MovieService {
         movie.setGenres(request.genres());
         movie.setDurationMinutes(request.durationMinutes());
         movie.setReleaseDate(request.releaseDate());
+        movie.setEndDate(request.endDate());
         movie.setDirector(request.director());
         movie.setCastNames(request.castNames());
         movie.setAgeRating(request.ageRating());
@@ -83,6 +84,7 @@ public class MovieService {
                 movie.getGenres(),
                 movie.getDurationMinutes(),
                 movie.getReleaseDate(),
+                movie.getEndDate(),
                 movie.getDirector(),
                 movie.getCastNames(),
                 movie.getAgeRating(),

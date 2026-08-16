@@ -15,6 +15,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 8MB
   jackson:
     default-property-inclusion: non_null
 
@@ -26,6 +30,9 @@ app:
     expiration-minutes: 120
   booking:
     seat-hold-minutes: 5
+    sales-cutoff-minutes: 20
+  media:
+    upload-dir: ${MEDIA_UPLOAD_DIR:uploads/movies}
 
 springdoc:
   swagger-ui:

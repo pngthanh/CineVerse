@@ -26,6 +26,7 @@ public class Movie {
     @Column(nullable = false)
     private Integer durationMinutes;
     private LocalDate releaseDate;
+    private LocalDate endDate;
     private String director;
     @Column(length = 1000)
     private String castNames;
@@ -54,6 +55,8 @@ public class Movie {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public LocalDate getReleaseDate() { return releaseDate; }
     public void setReleaseDate(LocalDate releaseDate) { this.releaseDate = releaseDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public String getDirector() { return director; }
     public void setDirector(String director) { this.director = director; }
     public String getCastNames() { return castNames; }

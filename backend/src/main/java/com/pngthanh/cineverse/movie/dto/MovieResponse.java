@@ -10,6 +10,7 @@ public record MovieResponse(
         String genres,
         Integer durationMinutes,
         LocalDate releaseDate,
+        LocalDate endDate,
         String director,
         String castNames,
         String ageRating,
