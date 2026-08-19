@@ -13,6 +13,14 @@ export interface UserProfile {
     email: string;
     username?: string;
     localCredentials?: boolean;
+    phone?: string;
+    provinceCode?: string;
+    provinceName?: string;
+    districtCode?: string;
+    districtName?: string;
+    wardCode?: string;
+    wardName?: string;
+    addressDetail?: string;
     role: Role;
     status: UserStatus;
     createdAt: string;

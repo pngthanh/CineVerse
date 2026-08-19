@@ -35,6 +35,30 @@ public class User {
     @Column(length = 100)
     private String passwordHash;
 
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 20)
+    private String provinceCode;
+
+    @Column(length = 100)
+    private String provinceName;
+
+    @Column(length = 20)
+    private String districtCode;
+
+    @Column(length = 100)
+    private String districtName;
+
+    @Column(length = 20)
+    private String wardCode;
+
+    @Column(length = 100)
+    private String wardName;
+
+    @Column(length = 255)
+    private String addressDetail;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role = Role.CUSTOMER;
@@ -55,6 +79,22 @@ public class User {
     public void setUsername(String username) { this.username = username; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getProvinceCode() { return provinceCode; }
+    public void setProvinceCode(String provinceCode) { this.provinceCode = provinceCode; }
+    public String getProvinceName() { return provinceName; }
+    public void setProvinceName(String provinceName) { this.provinceName = provinceName; }
+    public String getDistrictCode() { return districtCode; }
+    public void setDistrictCode(String districtCode) { this.districtCode = districtCode; }
+    public String getDistrictName() { return districtName; }
+    public void setDistrictName(String districtName) { this.districtName = districtName; }
+    public String getWardCode() { return wardCode; }
+    public void setWardCode(String wardCode) { this.wardCode = wardCode; }
+    public String getWardName() { return wardName; }
+    public void setWardName(String wardName) { this.wardName = wardName; }
+    public String getAddressDetail() { return addressDetail; }
+    public void setAddressDetail(String addressDetail) { this.addressDetail = addressDetail; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
     public UserStatus getStatus() { return status; }

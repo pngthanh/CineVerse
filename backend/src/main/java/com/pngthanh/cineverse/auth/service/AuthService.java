@@ -57,6 +57,14 @@ public class AuthService {
         user.setEmail(email);
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPhone(request.phone().trim());
+        user.setProvinceCode(request.provinceCode().trim());
+        user.setProvinceName(request.provinceName().trim());
+        user.setDistrictCode(request.districtCode().trim());
+        user.setDistrictName(request.districtName().trim());
+        user.setWardCode(request.wardCode().trim());
+        user.setWardName(request.wardName().trim());
+        user.setAddressDetail(normalizeNullable(request.addressDetail()));
         user.setRole(Role.CUSTOMER);
         user.setStatus(UserStatus.ACTIVE);
         return response(users.save(user));
@@ -94,9 +102,24 @@ public class AuthService {
                         user.getEmail(),
                         user.getUsername(),
                         user.hasLocalCredentials(),
+                        user.getPhone(),
+                        user.getProvinceCode(),
+                        user.getProvinceName(),
+                        user.getDistrictCode(),
+                        user.getDistrictName(),
+                        user.getWardCode(),
+                        user.getWardName(),
+                        user.getAddressDetail(),
                         user.getRole().name(),
                         user.getStatus().name(),
                         user.getCreatedAt()));
+    }
+
+    private String normalizeNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private String normalizeEmail(String email) {
