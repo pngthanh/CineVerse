@@ -1,6 +1,5 @@
 package com.pngthanh.cineverse.movie.dto;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record MovieResponse(
@@ -18,7 +17,5 @@ public record MovieResponse(
         String backdropUrl,
         String trailerUrl,
         String status,
-        BigDecimal ratingAverage,
-        Integer reviewCount,
         Long ticketsSold) {
 }

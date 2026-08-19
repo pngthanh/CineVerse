@@ -19,6 +19,19 @@ spring:
     multipart:
       max-file-size: 8MB
       max-request-size: 8MB
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+    test-connection: false
   jackson:
     default-property-inclusion: non_null
 
@@ -33,6 +46,8 @@ app:
     sales-cutoff-minutes: 20
   media:
     upload-dir: ${MEDIA_UPLOAD_DIR:uploads/movies}
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
 
 springdoc:
   swagger-ui:

@@ -92,8 +92,6 @@ public class MovieService {
                 movie.getBackdropUrl(),
                 movie.getTrailerUrl(),
                 movie.getStatus().name(),
-                movie.getRatingAverage(),
-                movie.getReviewCount(),
                 movie.getTicketsSold());
     }
 }

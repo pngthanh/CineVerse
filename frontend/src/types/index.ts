@@ -11,6 +11,8 @@ export interface UserProfile {
     id: number;
     fullName: string;
     email: string;
+    username?: string;
+    localCredentials?: boolean;
     role: Role;
     status: UserStatus;
     createdAt: string;
@@ -31,8 +33,6 @@ export interface Movie {
     backdropUrl?: string;
     trailerUrl?: string;
     status: MovieStatus;
-    ratingAverage?: number;
-    reviewCount?: number;
     ticketsSold?: number;
 }
 

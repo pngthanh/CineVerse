@@ -75,7 +75,7 @@ export function CustomerHeader() {
         <header className="site-header">
             <div className="container nav">
                 <Link className="brand brand-lockup" to="/">
-                    <span className="brand-mark">C</span><span>CineVerse</span>
+                    <span>CineVerse</span>
                 </Link>
 
                 <nav aria-label="Điều hướng chính">

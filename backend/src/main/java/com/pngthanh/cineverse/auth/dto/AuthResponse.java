@@ -12,6 +12,8 @@ public record AuthResponse(
             Long id,
             String fullName,
             String email,
+            String username,
+            boolean localCredentials,
             String role,
             String status,
             Instant createdAt) {

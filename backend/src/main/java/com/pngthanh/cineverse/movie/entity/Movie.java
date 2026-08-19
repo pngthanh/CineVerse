@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -37,9 +36,6 @@ public class Movie {
     private String backdropUrl;
     @Column(length = 1000)
     private String trailerUrl;
-    @Column(precision = 3, scale = 1)
-    private BigDecimal ratingAverage = new BigDecimal("8.0");
-    private Integer reviewCount = 0;
     private Long ticketsSold = 0L;
     @Enumerated(EnumType.STRING) @Column(nullable = false)
     private MovieStatus status = MovieStatus.NOW_SHOWING;
@@ -69,10 +65,6 @@ public class Movie {
     public void setBackdropUrl(String backdropUrl) { this.backdropUrl = backdropUrl; }
     public String getTrailerUrl() { return trailerUrl; }
     public void setTrailerUrl(String trailerUrl) { this.trailerUrl = trailerUrl; }
-    public BigDecimal getRatingAverage() { return ratingAverage; }
-    public void setRatingAverage(BigDecimal ratingAverage) { this.ratingAverage = ratingAverage; }
-    public Integer getReviewCount() { return reviewCount; }
-    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
     public Long getTicketsSold() { return ticketsSold; }
     public void setTicketsSold(Long ticketsSold) { this.ticketsSold = ticketsSold; }
     public MovieStatus getStatus() { return status; }
