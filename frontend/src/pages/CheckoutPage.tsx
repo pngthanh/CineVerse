@@ -4,7 +4,7 @@ import { BookingSteps } from '../components/BookingSteps';
 import { useCountdown } from '../hooks/useCountdown';
 import { ApiError, api } from '../lib/api';
 import { money, seatTypeLabel } from '../lib/format';
-import type { Booking, ConcessionItem, SeatHold, VoucherQuote } from '../types';
+import type { Booking, ConcessionItem, SeatHold, Voucher, VoucherQuote } from '../types';
 
 export function CheckoutPage() {
     const navigate = useNavigate();
@@ -21,18 +21,25 @@ export function CheckoutPage() {
     const [submitting, setSubmitting] = useState(false);
     const [voucherCode, setVoucherCode] = useState('');
     const [voucherQuote, setVoucherQuote] = useState<VoucherQuote | null>(null);
+    const [savedVouchers, setSavedVouchers] = useState<Voucher[]>([]);
+    const [voucherMenuOpen, setVoucherMenuOpen] = useState(false);
     const [checkingVoucher, setCheckingVoucher] = useState(false);
     const [concessions, setConcessions] = useState<ConcessionItem[]>([]);
     const [concessionQuantities, setConcessionQuantities] = useState<Record<number, number>>({});
 
     useEffect(() => {
         let active = true;
-        void api<ConcessionItem[]>('/concessions')
-            .then((items) => {
-                if (active) setConcessions(items);
+        void Promise.all([
+            api<ConcessionItem[]>('/concessions'),
+            api<Voucher[]>('/vouchers/saved').catch(() => [] as Voucher[]),
+        ])
+            .then(([items, voucherItems]) => {
+                if (!active) return;
+                setConcessions(items);
+                setSavedVouchers(voucherItems);
             })
             .catch(() => {
-                if (active) setError('Không thể tải danh sách bắp nước.');
+                if (active) setError('Không thể tải dữ liệu thanh toán.');
             });
         return () => {
             active = false;
@@ -93,10 +100,15 @@ export function CheckoutPage() {
         try {
             const quote = await api<VoucherQuote>('/vouchers/quote', {
                 method: 'POST',
-                body: JSON.stringify({ code: voucherCode.trim(), subtotal }),
+                body: JSON.stringify({
+                    code: voucherCode.trim(),
+                    subtotal,
+                    showtimeId: Number(sessionStorage.getItem('cineverse_showtime_id')),
+                }),
             });
             setVoucherQuote(quote);
             setVoucherCode(quote.code);
+            setVoucherMenuOpen(false);
         }
         catch (requestError) {
             setVoucherQuote(null);
@@ -113,6 +125,7 @@ export function CheckoutPage() {
         setVoucherQuote(null);
         setVoucherCode('');
         setError('');
+        setVoucherMenuOpen(false);
     };
 
     if (!hold) {
@@ -218,34 +231,28 @@ export function CheckoutPage() {
                     <h3>Tổng thanh toán</h3>
                     <div className="voucher-box">
                         <label htmlFor="voucher-code">Mã ưu đãi</label>
-                        <div className="voucher-form">
-                            <input
-                                id="voucher-code"
-                                value={voucherCode}
-                                disabled={Boolean(voucherQuote)}
-                                placeholder="Ví dụ: CINE10"
-                                onChange={(event) => setVoucherCode(event.target.value.toUpperCase())}
-                            />
-                            {voucherQuote ? (
-                                <button className="btn btn-secondary btn-sm" type="button" onClick={removeVoucher}>
-                                    Bỏ mã
-                                </button>
-                            ) : (
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    type="button"
-                                    disabled={!voucherCode.trim() || checkingVoucher}
-                                    onClick={applyVoucher}
-                                >
-                                    {checkingVoucher ? 'Đang kiểm tra...' : 'Áp dụng'}
-                                </button>
-                            )}
+                        <div className="voucher-picker">
+                            <div className="voucher-form">
+                                <input
+                                    id="voucher-code"
+                                    value={voucherCode}
+                                    disabled={Boolean(voucherQuote)}
+                                    placeholder="Chọn mã đã lưu hoặc tự nhập"
+                                    autoComplete="off"
+                                    onFocus={() => { if (!voucherQuote) setVoucherMenuOpen(true); }}
+                                    onChange={(event) => {
+                                        setVoucherCode(event.target.value.toUpperCase());
+                                        setVoucherMenuOpen(true);
+                                    }}
+                                />
+                                {voucherQuote ? <button className="btn btn-secondary btn-sm" type="button" onClick={removeVoucher}>Bỏ mã</button> : <button className="btn btn-secondary btn-sm" type="button" disabled={!voucherCode.trim() || checkingVoucher} onClick={applyVoucher}>{checkingVoucher ? 'Đang kiểm tra...' : 'Áp dụng'}</button>}
+                            </div>
+                            {voucherMenuOpen && !voucherQuote && <div className="voucher-dropdown">
+                                <div className="voucher-dropdown-head"><strong>Voucher đã lưu</strong><button type="button" onClick={() => setVoucherMenuOpen(false)}>×</button></div>
+                                {savedVouchers.length ? savedVouchers.map((voucher) => <button className="voucher-dropdown-item" type="button" key={voucher.id} onClick={() => { setVoucherCode(voucher.code); setVoucherMenuOpen(false); }}><span><strong>{voucher.code}</strong><small>{voucher.title}</small></span><b>{voucher.discountType === 'PERCENT' ? `-${voucher.discountValue}%` : `-${money(voucher.discountValue)}`}</b></button>) : <p>Chưa có voucher đã lưu. Bạn vẫn có thể nhập mã thủ công.</p>}
+                            </div>}
                         </div>
-                        {voucherQuote && (
-                            <p className="voucher-success">
-                                Đã áp dụng {voucherQuote.code} · giảm {voucherQuote.discountPercent}%
-                            </p>
-                        )}
+                        {voucherQuote && <p className="voucher-success">Đã áp dụng {voucherQuote.code} · giảm {voucherQuote.discountType === 'PERCENT' ? `${voucherQuote.discountValue}%` : money(voucherQuote.discountValue)}</p>}
                     </div>
                     <div className="summary-row">
                         <span>Vé xem phim</span>

@@ -14,6 +14,7 @@ export function AdminLayout() {
                         <NavLink to="/admin/showtimes">Suất chiếu</NavLink>
                         <NavLink to="/admin/bookings">Đặt vé</NavLink>
                         <NavLink to="/admin/users">Người dùng</NavLink>
+                        <NavLink to="/admin/vouchers">Voucher</NavLink>
                     </nav>
                 </div>
                 <NavLink className="admin-back-customer" to="/">Về trang khách</NavLink>

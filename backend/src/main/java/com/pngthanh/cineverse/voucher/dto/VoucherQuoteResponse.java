@@ -4,7 +4,8 @@ import java.math.BigDecimal;
 
 public record VoucherQuoteResponse(
         String code,
-        BigDecimal discountPercent,
+        String discountType,
+        BigDecimal discountValue,
         BigDecimal subtotal,
         BigDecimal discountAmount,
         BigDecimal totalAmount) {

@@ -14,6 +14,7 @@ export type AuthContextValue = {
     user: UserProfile | null;
     loading: boolean;
     login: (identifier: string, password: string) => Promise<UserProfile>;
+    loginWithGoogle: (credential: string) => Promise<UserProfile>;
     register: (payload: RegisterPayload) => Promise<UserProfile>;
     logout: () => void;
     refresh: () => Promise<void>;
@@ -48,16 +49,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!hasStoredToken) return;
 
         let active = true;
+
         void api<UserProfile>('/me')
             .then((profile) => {
-                if (active) setUser(profile);
+                if (active) {
+                    setUser(profile);
+                }
             })
             .catch(() => {
                 localStorage.removeItem('cineverse_token');
-                if (active) setUser(null);
+
+                if (active) {
+                    setUser(null);
+                }
             })
             .finally(() => {
-                if (active) setLoading(false);
+                if (active) {
+                    setLoading(false);
+                }
             });
 
         return () => {
@@ -66,22 +75,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [hasStoredToken]);
 
     const login = async (identifier: string, password: string) => {
-        const response = await api<{ accessToken: string; user: UserProfile }>('/auth/login', {
+        const response = await api<{
+            accessToken: string;
+            user: UserProfile;
+        }>('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ identifier, password }),
+            body: JSON.stringify({
+                identifier,
+                password,
+            }),
         });
+
         localStorage.setItem('cineverse_token', response.accessToken);
         setUser(response.user);
+
+        return response.user;
+    };
+
+    const loginWithGoogle = async (credential: string) => {
+        const response = await api<{
+            accessToken: string;
+            user: UserProfile;
+        }>('/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({
+                credential,
+            }),
+        });
+
+        localStorage.setItem('cineverse_token', response.accessToken);
+        setUser(response.user);
+
         return response.user;
     };
 
     const register = async (payload: RegisterPayload) => {
-        const response = await api<{ accessToken: string; user: UserProfile }>('/auth/register', {
+        const response = await api<{
+            accessToken: string;
+            user: UserProfile;
+        }>('/auth/register', {
             method: 'POST',
             body: JSON.stringify(payload),
         });
+
         localStorage.setItem('cineverse_token', response.accessToken);
         setUser(response.user);
+
         return response.user;
     };
 
@@ -91,9 +130,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const value = useMemo(
-        () => ({ user, loading, login, register, logout, refresh }),
+        () => ({
+            user,
+            loading,
+            login,
+            loginWithGoogle,
+            register,
+            logout,
+            refresh,
+        }),
         [user, loading],
     );
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 }

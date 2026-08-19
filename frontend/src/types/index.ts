@@ -155,9 +155,34 @@ export interface Booking {
     ticketStatus?: TicketStatus;
 }
 
+
+export interface Voucher {
+    id: number;
+    code: string;
+    title: string;
+    description?: string;
+    discountType: 'PERCENT' | 'FIXED';
+    discountValue: number;
+    minOrderAmount: number;
+    maxDiscountAmount?: number;
+    startsAt: string;
+    expiresAt: string;
+    active: boolean;
+    publicVisible: boolean;
+    audience: 'ALL' | 'SELECTED_USERS';
+    movieId?: number;
+    movieTitle?: string;
+    usageLimit?: number;
+    perUserLimit?: number;
+    assignedUserIds: number[];
+    saved: boolean;
+    eligible: boolean;
+}
+
 export interface VoucherQuote {
     code: string;
-    discountPercent: number;
+    discountType: 'PERCENT' | 'FIXED';
+    discountValue: number;
     subtotal: number;
     discountAmount: number;
     totalAmount: number;

@@ -134,7 +134,8 @@ public class BookingService {
 
         booking.setConcessionAmount(concessionQuote.totalAmount());
         booking.setSubtotalAmount(subtotal);
-        VoucherService.AppliedVoucher appliedVoucher = vouchers.apply(request.voucherCode(), subtotal);
+        VoucherService.AppliedVoucher appliedVoucher = vouchers.apply(
+                request.voucherCode(), subtotal, user, showtime.getMovie());
         booking.setVoucherCode(appliedVoucher.code());
         booking.setDiscountAmount(appliedVoucher.discountAmount());
         booking.setTotalAmount(appliedVoucher.totalAmount());

@@ -24,6 +24,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     long countByStatus(BookingStatus status);
 
+    long countByVoucherCodeIgnoreCaseAndStatusNot(String voucherCode, BookingStatus status);
+
+    long countByUserIdAndVoucherCodeIgnoreCaseAndStatusNot(
+            Long userId,
+            String voucherCode,
+            BookingStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")
     Optional<Booking> findByIdForUpdate(@Param("id") Long id);

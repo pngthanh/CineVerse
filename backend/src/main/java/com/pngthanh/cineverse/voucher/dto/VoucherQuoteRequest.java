@@ -7,5 +7,6 @@ import java.math.BigDecimal;
 
 public record VoucherQuoteRequest(
         @NotBlank String code,
-        @NotNull @DecimalMin("0") BigDecimal subtotal) {
+        @NotNull @DecimalMin("0") BigDecimal subtotal,
+        @NotNull Long showtimeId) {
 }

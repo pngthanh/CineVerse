@@ -9,6 +9,8 @@ import com.pngthanh.cineverse.cinema.repository.SeatRepository;
 import com.pngthanh.cineverse.common.enums.MovieStatus;
 import com.pngthanh.cineverse.common.enums.Role;
 import com.pngthanh.cineverse.common.enums.SeatType;
+import com.pngthanh.cineverse.common.enums.VoucherAudience;
+import com.pngthanh.cineverse.common.enums.VoucherDiscountType;
 import com.pngthanh.cineverse.concession.entity.ConcessionItem;
 import com.pngthanh.cineverse.concession.repository.ConcessionItemRepository;
 import com.pngthanh.cineverse.movie.entity.Movie;
@@ -114,6 +116,8 @@ public class DataInitializer implements CommandLineRunner {
                     rooms,
                     cinemas,
                     movies,
+                    saved_vouchers,
+                    voucher_assignments,
                     vouchers,
                     concession_items,
                     users
@@ -170,12 +174,20 @@ public class DataInitializer implements CommandLineRunner {
             int startOffsetDays,
             int expiryOffsetDays) {
         Voucher voucher = new Voucher();
+        BigDecimal percentValue = new BigDecimal(percent);
         voucher.setCode(code);
-        voucher.setDiscountPercent(new BigDecimal(percent));
+        voucher.setTitle("Ưu đãi " + code);
+        voucher.setDescription("Voucher demo dành cho khách hàng CineVerse.");
+        voucher.setDiscountType(VoucherDiscountType.PERCENT);
+        voucher.setDiscountValue(percentValue);
+        voucher.setDiscountPercent(percentValue);
         voucher.setMinOrderAmount(new BigDecimal(minOrder));
         voucher.setMaxDiscountAmount(new BigDecimal(maxDiscount));
         voucher.setStartsAt(LocalDateTime.now(clock).plusDays(startOffsetDays));
         voucher.setExpiresAt(LocalDateTime.now(clock).plusDays(expiryOffsetDays));
+        voucher.setAudience(VoucherAudience.ALL);
+        voucher.setPublicVisible(true);
+        voucher.setPerUserLimit(1);
         vouchers.save(voucher);
     }
 

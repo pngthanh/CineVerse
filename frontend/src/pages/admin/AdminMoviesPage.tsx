@@ -133,7 +133,7 @@ export function AdminMoviesPage() {
 
         <Modal open={modalOpen} title={editingId ? 'Chỉnh sửa phim' : 'Thêm phim'} onClose={closeModal} wide>
             {error && <div className="alert alert-error">{error}</div>}
-            <form className="modal-form" onSubmit={submit}>
+            <form className="modal-form admin-clean-form" onSubmit={submit}>
                 <div className="form-two-col"><label>Tên phim<input value={form.title} onChange={(e) => updateField('title', e.target.value)} required /></label><label>Thể loại<input value={form.genres} onChange={(e) => updateField('genres', e.target.value)} required /></label></div>
                 <label>Mô tả<textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} required /></label>
                 <div className="form-two-col"><label>Thời lượng (phút)<input type="number" min="1" value={form.durationMinutes} onChange={(e) => updateField('durationMinutes', Number(e.target.value))} required /></label><label>Phân loại tuổi<input value={form.ageRating} onChange={(e) => updateField('ageRating', e.target.value)} /></label></div>
