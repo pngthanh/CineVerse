@@ -48,6 +48,8 @@ app:
     upload-dir: ${MEDIA_UPLOAD_DIR:uploads/movies}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
 
 springdoc:
   swagger-ui:

@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+    private static final String LOCAL_EMAIL_SUFFIX = "@local.cineverse.invalid";
+
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService tokens;
@@ -31,14 +33,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        String email = normalizeEmail(request.email());
         String username = normalizeUsername(request.username());
-        if (users.existsByEmailIgnoreCase(email)) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "EMAIL_ALREADY_EXISTS",
-                    "Email đã được sử dụng.");
-        }
         if (users.existsByUsernameIgnoreCase(username)) {
             throw new ApiException(
                     HttpStatus.CONFLICT,
@@ -54,17 +49,10 @@ public class AuthService {
 
         User user = new User();
         user.setFullName(request.fullName().trim());
-        user.setEmail(email);
+        user.setEmail(localIdentityEmail(username));
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setPhone(request.phone().trim());
-        user.setProvinceCode(request.provinceCode().trim());
-        user.setProvinceName(request.provinceName().trim());
-        user.setDistrictCode(request.districtCode().trim());
-        user.setDistrictName(request.districtName().trim());
-        user.setWardCode(request.wardCode().trim());
-        user.setWardName(request.wardName().trim());
-        user.setAddressDetail(normalizeNullable(request.addressDetail()));
         user.setRole(Role.CUSTOMER);
         user.setStatus(UserStatus.ACTIVE);
         return response(users.save(user));
@@ -73,9 +61,14 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         String identifier = request.identifier().trim();
-        User user = identifier.contains("@")
-                ? users.findByEmailIgnoreCase(normalizeEmail(identifier)).orElse(null)
-                : users.findByUsernameIgnoreCase(normalizeUsername(identifier)).orElse(null);
+        User user;
+        if (identifier.contains("@")) {
+            String email = normalizeEmail(identifier);
+            user = users.findByRecoveryEmailIgnoreCase(email)
+                    .orElseGet(() -> users.findByEmailIgnoreCase(email).orElse(null));
+        } else {
+            user = users.findByUsernameIgnoreCase(normalizeUsername(identifier)).orElse(null);
+        }
         if (user == null || user.getStatus() != UserStatus.ACTIVE || !validPassword(user, request.password())) {
             throw new ApiException(
                     HttpStatus.UNAUTHORIZED,
@@ -91,7 +84,7 @@ public class AuthService {
                 && passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    private AuthResponse response(User user) {
+    public AuthResponse response(User user) {
         return new AuthResponse(
                 tokens.create(user),
                 "Bearer",
@@ -99,9 +92,11 @@ public class AuthService {
                 new AuthResponse.UserSummary(
                         user.getId(),
                         user.getFullName(),
-                        user.getEmail(),
+                        publicEmail(user),
                         user.getUsername(),
                         user.hasLocalCredentials(),
+                        user.hasGoogleAccount(),
+                        user.getGoogleEmail(),
                         user.getPhone(),
                         user.getProvinceCode(),
                         user.getProvinceName(),
@@ -115,11 +110,18 @@ public class AuthService {
                         user.getCreatedAt()));
     }
 
-    private String normalizeNullable(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
+    private String publicEmail(User user) {
+        if (user.getRecoveryEmail() != null && !user.getRecoveryEmail().isBlank()) {
+            return user.getRecoveryEmail();
         }
-        return value.trim();
+        if (user.hasGoogleAccount()) {
+            return user.getGoogleEmail();
+        }
+        return null;
+    }
+
+    private String localIdentityEmail(String username) {
+        return "local+" + username + LOCAL_EMAIL_SUFFIX;
     }
 
     private String normalizeEmail(String email) {

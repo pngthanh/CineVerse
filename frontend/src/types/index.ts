@@ -10,9 +10,11 @@ export type TicketStatus = 'CONFIRMED' | 'USED' | 'CANCELLED';
 export interface UserProfile {
     id: number;
     fullName: string;
-    email: string;
+    email?: string;
     username?: string;
     localCredentials?: boolean;
+    googleLinked?: boolean;
+    googleEmail?: string;
     phone?: string;
     provinceCode?: string;
     provinceName?: string;

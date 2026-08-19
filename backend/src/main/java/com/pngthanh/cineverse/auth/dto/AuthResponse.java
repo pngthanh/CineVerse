@@ -14,6 +14,8 @@ public record AuthResponse(
             String email,
             String username,
             boolean localCredentials,
+            boolean googleLinked,
+            String googleEmail,
             String phone,
             String provinceCode,
             String provinceName,

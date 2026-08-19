@@ -2,11 +2,13 @@ package com.pngthanh.cineverse.auth.controller;
 
 import com.pngthanh.cineverse.auth.dto.AuthResponse;
 import com.pngthanh.cineverse.auth.dto.ForgotPasswordRequest;
+import com.pngthanh.cineverse.auth.dto.GoogleCredentialRequest;
 import com.pngthanh.cineverse.auth.dto.LoginRequest;
 import com.pngthanh.cineverse.auth.dto.MessageResponse;
 import com.pngthanh.cineverse.auth.dto.RegisterRequest;
 import com.pngthanh.cineverse.auth.dto.ResetPasswordRequest;
 import com.pngthanh.cineverse.auth.service.AuthService;
+import com.pngthanh.cineverse.auth.service.GoogleAuthService;
 import com.pngthanh.cineverse.auth.service.PasswordResetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,10 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
+    private final GoogleAuthService googleAuthService;
 
-    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
+    public AuthController(
+            AuthService authService,
+            PasswordResetService passwordResetService,
+            GoogleAuthService googleAuthService) {
         this.authService = authService;
         this.passwordResetService = passwordResetService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/register")
@@ -36,6 +43,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/google")
+    public AuthResponse google(@Valid @RequestBody GoogleCredentialRequest request) {
+        return googleAuthService.login(request);
     }
 
     @PostMapping("/forgot-password")

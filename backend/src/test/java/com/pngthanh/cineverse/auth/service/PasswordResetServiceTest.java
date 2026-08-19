@@ -24,12 +24,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 class PasswordResetServiceTest {
+
     private UserRepository users;
     private PasswordResetTokenRepository tokens;
     private PasswordResetMailService mailService;
     private PasswordEncoder encoder;
     private PasswordResetService service;
-    private final Instant now = Instant.parse("2026-08-16T00:00:00Z");
+
+    private final Instant now =
+            Instant.parse("2026-08-16T00:00:00Z");
 
     @BeforeEach
     void setUp() {
@@ -37,6 +40,7 @@ class PasswordResetServiceTest {
         tokens = mock(PasswordResetTokenRepository.class);
         mailService = mock(PasswordResetMailService.class);
         encoder = mock(PasswordEncoder.class);
+
         service = new PasswordResetService(
                 users,
                 tokens,
@@ -47,30 +51,75 @@ class PasswordResetServiceTest {
 
     @Test
     void forgotPasswordDoesNotRevealUnknownEmail() {
-        service.request(new ForgotPasswordRequest("unknown@cineverse.vn"));
+        service.request(
+                new ForgotPasswordRequest(
+                        "unknown@cineverse.vn"));
 
-        verify(users).findByEmailIgnoreCase("unknown@cineverse.vn");
+        verify(users)
+                .findByRecoveryEmailIgnoreCase(
+                        "unknown@cineverse.vn");
+
+        verify(users)
+                .findByEmailIgnoreCase(
+                        "unknown@cineverse.vn");
     }
 
     @Test
     void forgotPasswordCreatesTokenAndSendsMail() {
         User user = new User();
+
         user.setFullName("Member");
-        user.setEmail("member@cineverse.vn");
-        when(users.findByEmailIgnoreCase("member@cineverse.vn")).thenReturn(Optional.of(user));
-        when(tokens.save(any(PasswordResetToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        user.setEmail(
+                "local+member01@local.cineverse.invalid");
+        user.setRecoveryEmail(
+                "member@cineverse.vn");
 
-        service.request(new ForgotPasswordRequest("member@cineverse.vn"));
+        /*
+         * Password reset chỉ áp dụng cho account đã có
+         * local credentials.
+         */
+        user.setUsername("member01");
+        user.setPasswordHash("encoded-password");
 
-        verify(tokens).deleteAllByUser(user);
-        verify(mailService).sendResetLink(anyString(), anyString(), anyString());
+        when(users.findByRecoveryEmailIgnoreCase(
+                "member@cineverse.vn"))
+                .thenReturn(Optional.of(user));
+
+        when(tokens.save(any(PasswordResetToken.class)))
+                .thenAnswer(
+                        invocation ->
+                                invocation.getArgument(0));
+
+        service.request(
+                new ForgotPasswordRequest(
+                        "member@cineverse.vn"));
+
+        verify(tokens)
+                .deleteAllByUser(user);
+
+        verify(tokens)
+                .save(any(PasswordResetToken.class));
+
+        verify(mailService)
+                .sendResetLink(
+                        anyString(),
+                        anyString(),
+                        anyString());
     }
 
     @Test
     void resetRejectsMismatchedPassword() {
-        ApiException exception = assertThrows(ApiException.class, () -> service.reset(
-                new ResetPasswordRequest("token", "Password@123", "Different@123")));
+        ApiException exception =
+                assertThrows(
+                        ApiException.class,
+                        () -> service.reset(
+                                new ResetPasswordRequest(
+                                        "token",
+                                        "Password@123",
+                                        "Different@123")));
 
-        assertEquals("PASSWORD_CONFIRMATION_MISMATCH", exception.getCode());
+        assertEquals(
+                "PASSWORD_CONFIRMATION_MISMATCH",
+                exception.getCode());
     }
 }

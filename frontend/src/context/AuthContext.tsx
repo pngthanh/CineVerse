@@ -4,18 +4,10 @@ import type { UserProfile } from '../types';
 
 export type RegisterPayload = {
     fullName: string;
-    email: string;
     username: string;
     password: string;
     confirmPassword: string;
     phone: string;
-    provinceCode: string;
-    provinceName: string;
-    districtCode: string;
-    districtName: string;
-    wardCode: string;
-    wardName: string;
-    addressDetail: string;
 };
 
 export type AuthContextValue = {

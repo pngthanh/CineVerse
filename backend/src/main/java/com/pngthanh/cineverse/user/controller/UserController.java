@@ -1,12 +1,15 @@
 package com.pngthanh.cineverse.user.controller;
 
+import com.pngthanh.cineverse.auth.dto.GoogleCredentialRequest;
 import com.pngthanh.cineverse.auth.dto.MessageResponse;
 import com.pngthanh.cineverse.user.dto.ChangePasswordRequest;
+import com.pngthanh.cineverse.user.dto.CreateLocalCredentialsRequest;
 import com.pngthanh.cineverse.user.dto.UpdateProfileRequest;
 import com.pngthanh.cineverse.user.dto.UserProfileResponse;
 import com.pngthanh.cineverse.user.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,5 +44,24 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(authentication.getName(), request);
         return new MessageResponse("Đổi mật khẩu thành công.");
+    }
+
+    @PostMapping("/local-credentials")
+    public UserProfileResponse createLocalCredentials(
+            Authentication authentication,
+            @Valid @RequestBody CreateLocalCredentialsRequest request) {
+        return userService.createLocalCredentials(authentication.getName(), request);
+    }
+
+    @PostMapping("/google/link")
+    public UserProfileResponse linkGoogle(
+            Authentication authentication,
+            @Valid @RequestBody GoogleCredentialRequest request) {
+        return userService.linkGoogle(authentication.getName(), request.credential());
+    }
+
+    @DeleteMapping("/google/link")
+    public UserProfileResponse unlinkGoogle(Authentication authentication) {
+        return userService.unlinkGoogle(authentication.getName());
     }
 }

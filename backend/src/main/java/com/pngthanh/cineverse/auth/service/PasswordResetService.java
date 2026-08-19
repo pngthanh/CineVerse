@@ -50,9 +50,18 @@ public class PasswordResetService {
     @Transactional
     public void request(ForgotPasswordRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
-        User user = users.findByEmailIgnoreCase(email).orElse(null);
-        if (user == null) {
+        User user = users.findByRecoveryEmailIgnoreCase(email)
+                .orElseGet(() -> users.findByEmailIgnoreCase(email).orElse(null));
+        if (user == null || !user.hasLocalCredentials()) {
             return;
+        }
+
+        String recipient = user.getRecoveryEmail();
+        if (recipient == null || recipient.isBlank()) {
+            if (!user.hasGoogleAccount() || user.getGoogleEmail() == null) {
+                return;
+            }
+            recipient = user.getGoogleEmail();
         }
 
         resetTokens.deleteAllByUser(user);
@@ -62,7 +71,7 @@ public class PasswordResetService {
         token.setTokenHash(hash(rawToken));
         token.setExpiresAt(Instant.now(clock).plus(TOKEN_MINUTES, ChronoUnit.MINUTES));
         resetTokens.save(token);
-        mailService.sendResetLink(user.getEmail(), user.getFullName(), rawToken);
+        mailService.sendResetLink(recipient, user.getFullName(), rawToken);
     }
 
     @Transactional
