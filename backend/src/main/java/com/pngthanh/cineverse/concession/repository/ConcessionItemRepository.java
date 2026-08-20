@@ -8,5 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ConcessionItemRepository extends JpaRepository<ConcessionItem, Long> {
     List<ConcessionItem> findAllByActiveTrueOrderByIdAsc();
 
+    List<ConcessionItem> findAllByOrderByIdAsc();
+
     Optional<ConcessionItem> findByNameIgnoreCase(String name);
 }

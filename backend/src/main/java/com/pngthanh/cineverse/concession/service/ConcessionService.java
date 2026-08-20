@@ -2,6 +2,8 @@ package com.pngthanh.cineverse.concession.service;
 
 import com.pngthanh.cineverse.booking.dto.CreateBookingRequest;
 import com.pngthanh.cineverse.common.exception.ApiException;
+import com.pngthanh.cineverse.concession.dto.ConcessionAdminRequest;
+import com.pngthanh.cineverse.concession.dto.ConcessionAdminResponse;
 import com.pngthanh.cineverse.concession.dto.ConcessionItemResponse;
 import com.pngthanh.cineverse.concession.entity.ConcessionItem;
 import com.pngthanh.cineverse.concession.repository.ConcessionItemRepository;
@@ -20,6 +22,44 @@ public class ConcessionService {
 
     public ConcessionService(ConcessionItemRepository items) {
         this.items = items;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConcessionAdminResponse> listAdmin() {
+        return items.findAllByOrderByIdAsc().stream().map(this::toAdminResponse).toList();
+    }
+
+    @Transactional
+    public ConcessionAdminResponse create(ConcessionAdminRequest request) {
+        String name = normalizeName(request.name());
+        if (items.findByNameIgnoreCase(name).isPresent()) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "CONCESSION_NAME_EXISTS",
+                    "Tên món bắp nước đã tồn tại.");
+        }
+        ConcessionItem item = new ConcessionItem();
+        apply(item, request, name);
+        return toAdminResponse(items.save(item));
+    }
+
+    @Transactional
+    public ConcessionAdminResponse update(Long id, ConcessionAdminRequest request) {
+        ConcessionItem item = requireItem(id);
+        String name = normalizeName(request.name());
+        items.findByNameIgnoreCase(name).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "CONCESSION_NAME_EXISTS",
+                    "Tên món bắp nước đã tồn tại.");
+        });
+        apply(item, request, name);
+        return toAdminResponse(item);
+    }
+
+    @Transactional
+    public void deactivate(Long id) {
+        requireItem(id).setActive(false);
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +110,34 @@ public class ConcessionService {
         }
 
         return new ConcessionQuote(List.copyOf(selected), total);
+    }
+
+    private ConcessionItem requireItem(Long id) {
+        return items.findById(id).orElseThrow(() -> new ApiException(
+                HttpStatus.NOT_FOUND,
+                "CONCESSION_NOT_FOUND",
+                "Không tìm thấy món bắp nước."));
+    }
+
+    private String normalizeName(String name) {
+        return name.trim().replaceAll("\\s+", " ");
+    }
+
+    private void apply(ConcessionItem item, ConcessionAdminRequest request, String name) {
+        item.setName(name);
+        String description = request.description() == null ? null : request.description().trim();
+        item.setDescription(description == null || description.isBlank() ? null : description);
+        item.setPrice(request.price());
+        item.setActive(request.active());
+    }
+
+    private ConcessionAdminResponse toAdminResponse(ConcessionItem item) {
+        return new ConcessionAdminResponse(
+                item.getId(),
+                item.getName(),
+                item.getDescription(),
+                item.getPrice(),
+                item.isActive());
     }
 
     public record SelectedConcession(

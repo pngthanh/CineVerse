@@ -194,3 +194,7 @@ export interface ConcessionItem {
     description: string;
     price: number;
 }
+
+export interface AdminConcessionItem extends ConcessionItem {
+    active: boolean;
+}
