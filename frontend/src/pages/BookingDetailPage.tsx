@@ -101,6 +101,9 @@ export function BookingDetailPage() {
                         <span>Trạng thái</span>
                         <StatusBadge value={booking.paymentStatus} />
                     </div>
+                    <div className="summary-row"><span>Phương thức</span><strong>{booking.paymentProvider ?? 'Chưa có'}</strong></div>
+                    {booking.paymentBankCode && <div className="summary-row"><span>Ngân hàng</span><strong>{booking.paymentBankCode}</strong></div>}
+                    {booking.paymentTransactionNo && <div className="summary-row"><span>Mã giao dịch</span><strong className="mono-value">{booking.paymentTransactionNo}</strong></div>}
                     <div className="summary-row">
                         <span>Vé xem phim</span>
                         <strong>{money(booking.seatAmount)}</strong>

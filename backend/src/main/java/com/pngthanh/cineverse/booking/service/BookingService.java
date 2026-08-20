@@ -260,9 +260,8 @@ public class BookingService {
         BigDecimal subtotalAmount = booking.getSubtotalAmount() == null
                 ? seatAmount.add(concessionAmount)
                 : booking.getSubtotalAmount();
-        String paymentStatus = payments.findByBookingId(booking.getId())
-                .map(payment -> payment.getStatus().name())
-                .orElse(null);
+        var payment = payments.findByBookingId(booking.getId()).orElse(null);
+        String paymentStatus = payment == null ? null : payment.getStatus().name();
         var ticket = tickets.findByBookingId(booking.getId()).orElse(null);
 
         return new BookingResponse(
@@ -293,6 +292,14 @@ public class BookingService {
                 seatInfo,
                 concessionInfo,
                 paymentStatus,
+                payment == null ? null : payment.getProvider(),
+                payment == null ? null : payment.getMethod(),
+                payment == null ? null : payment.getTransactionReference(),
+                payment == null ? null : payment.getGatewayTransactionNo(),
+                payment == null ? null : payment.getBankCode(),
+                payment == null ? null : payment.getCardType(),
+                payment == null ? null : payment.getResponseCode(),
+                payment == null ? null : payment.getPaidAt(),
                 ticket == null ? null : ticket.getTicketCode(),
                 ticket == null ? null : ticket.getStatus().name());
     }

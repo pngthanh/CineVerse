@@ -22,6 +22,14 @@ public record BookingResponse(
         List<SeatInfo> seats,
         List<ConcessionInfo> concessions,
         String paymentStatus,
+        String paymentProvider,
+        String paymentMethod,
+        String paymentTransactionReference,
+        String paymentTransactionNo,
+        String paymentBankCode,
+        String paymentCardType,
+        String paymentResponseCode,
+        Instant paymentPaidAt,
         String ticketCode,
         String ticketStatus) {
 

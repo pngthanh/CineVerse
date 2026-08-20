@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,11 +14,10 @@ import com.pngthanh.cineverse.booking.service.BookingService;
 import com.pngthanh.cineverse.common.enums.BookingStatus;
 import com.pngthanh.cineverse.common.enums.PaymentStatus;
 import com.pngthanh.cineverse.common.enums.ShowtimeSeatStatus;
-import com.pngthanh.cineverse.payment.dto.MockPaymentRequest;
+import com.pngthanh.cineverse.movie.entity.Movie;
 import com.pngthanh.cineverse.payment.dto.PaymentResponse;
 import com.pngthanh.cineverse.payment.entity.Payment;
 import com.pngthanh.cineverse.payment.repository.PaymentRepository;
-import com.pngthanh.cineverse.movie.entity.Movie;
 import com.pngthanh.cineverse.showtime.entity.Showtime;
 import com.pngthanh.cineverse.showtime.entity.ShowtimeSeat;
 import com.pngthanh.cineverse.ticket.entity.Ticket;
@@ -52,7 +50,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void successfulPaymentConfirmsBookingBooksSeatsAndCreatesTicket() {
+    void prepareVnPayCreatesPendingGatewayPayment() {
         User user = mock(User.class);
         when(user.getId()).thenReturn(10L);
         when(users.requireByEmail("customer@cineverse.vn")).thenReturn(user);
@@ -62,17 +60,32 @@ class PaymentServiceTest {
         when(booking.getUser()).thenReturn(user);
         when(booking.getStatus()).thenReturn(BookingStatus.PENDING);
         when(booking.getExpiresAt()).thenReturn(Instant.now().plusSeconds(120));
-        when(booking.getHoldToken()).thenReturn("hold-token");
         when(booking.getTotalAmount()).thenReturn(new BigDecimal("180000"));
+        when(bookings.requireForUpdate(20L)).thenReturn(booking);
+        when(payments.findByBookingId(20L)).thenReturn(Optional.empty());
+        when(payments.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment payment = service.prepareVnPay("customer@cineverse.vn", 20L, "CV20-TEST");
+
+        assertEquals(PaymentStatus.PENDING, payment.getStatus());
+        assertEquals("VNPAY", payment.getProvider());
+        assertEquals("CV20-TEST", payment.getTransactionReference());
+        assertEquals(new BigDecimal("180000"), payment.getAmount());
+    }
+
+    @Test
+    void successfulVnPayCallbackConfirmsBookingAndCreatesTicket() {
+        Booking booking = mock(Booking.class);
+        when(booking.getId()).thenReturn(20L);
+        when(booking.getStatus()).thenReturn(BookingStatus.PENDING);
+        when(booking.getHoldToken()).thenReturn("hold-token");
+        when(bookings.requireForUpdate(20L)).thenReturn(booking);
+
         Movie movie = mock(Movie.class);
         when(movie.getTicketsSold()).thenReturn(120L);
         Showtime showtime = mock(Showtime.class);
         when(showtime.getMovie()).thenReturn(movie);
         when(booking.getShowtime()).thenReturn(showtime);
-        when(bookings.requireForUpdate(20L)).thenReturn(booking);
-
-        when(payments.findByBookingId(20L)).thenReturn(Optional.empty());
-        when(payments.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ShowtimeSeat showtimeSeat = mock(ShowtimeSeat.class);
         when(showtimeSeat.getStatus()).thenReturn(ShowtimeSeatStatus.HELD);
@@ -81,48 +94,28 @@ class PaymentServiceTest {
         when(bookingSeat.getShowtimeSeat()).thenReturn(showtimeSeat);
         when(bookingSeats.findAllByBookingId(20L)).thenReturn(List.of(bookingSeat));
 
+        Payment payment = new Payment();
+        payment.setBooking(booking);
+        payment.setAmount(new BigDecimal("180000"));
+        payment.setTransactionReference("CV20-TEST");
         when(tickets.findByBookingId(20L)).thenReturn(Optional.empty());
         when(tickets.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        PaymentResponse response = service.mock(
-                "customer@cineverse.vn",
-                new MockPaymentRequest(20L, MockPaymentRequest.Result.SUCCESS));
+        PaymentResponse response = service.confirmVnPay(
+                payment,
+                "14901234",
+                "NCB202608200001",
+                "NCB",
+                "ATM",
+                "00",
+                "00",
+                "RETURN");
 
         assertEquals(PaymentStatus.SUCCESS.name(), response.paymentStatus());
+        assertEquals("NCB", response.bankCode());
         assertNotNull(response.ticketCode());
         verify(booking).setStatus(BookingStatus.CONFIRMED);
         verify(showtimeSeat).setStatus(ShowtimeSeatStatus.BOOKED);
-        verify(showtimeSeat).setHeldByUserId(null);
-        verify(showtimeSeat).setHoldToken(null);
-        verify(showtimeSeat).setHoldExpiresAt(null);
         verify(movie).setTicketsSold(121L);
-        verify(tickets).save(any(Ticket.class));
-    }
-
-    @Test
-    void failedPaymentCancelsBookingAndReleasesHeldSeats() {
-        User user = mock(User.class);
-        when(user.getId()).thenReturn(10L);
-        when(users.requireByEmail("customer@cineverse.vn")).thenReturn(user);
-
-        Booking booking = mock(Booking.class);
-        when(booking.getId()).thenReturn(20L);
-        when(booking.getUser()).thenReturn(user);
-        when(booking.getStatus()).thenReturn(BookingStatus.PENDING);
-        when(booking.getExpiresAt()).thenReturn(Instant.now().plusSeconds(120));
-        when(booking.getTotalAmount()).thenReturn(new BigDecimal("180000"));
-        when(bookings.requireForUpdate(20L)).thenReturn(booking);
-
-        when(payments.findByBookingId(20L)).thenReturn(Optional.empty());
-        when(payments.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        PaymentResponse response = service.mock(
-                "customer@cineverse.vn",
-                new MockPaymentRequest(20L, MockPaymentRequest.Result.FAILED));
-
-        assertEquals(PaymentStatus.FAILED.name(), response.paymentStatus());
-        verify(booking).setStatus(BookingStatus.CANCELLED);
-        verify(bookings).releaseHeldSeats(booking);
-        verify(tickets, never()).save(any(Ticket.class));
     }
 }

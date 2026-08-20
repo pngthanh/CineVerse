@@ -151,6 +151,14 @@ export interface Booking {
         totalPrice: number;
     }>;
     paymentStatus?: PaymentStatus;
+    paymentProvider?: string;
+    paymentMethod?: string;
+    paymentTransactionReference?: string;
+    paymentTransactionNo?: string;
+    paymentBankCode?: string;
+    paymentCardType?: string;
+    paymentResponseCode?: string;
+    paymentPaidAt?: string;
     ticketCode?: string;
     ticketStatus?: TicketStatus;
 }

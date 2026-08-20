@@ -62,7 +62,7 @@ export function AdminBookingsPage() {
                 <table>
                     <thead>
                         <tr>
-                            <th>Mã</th><th>Phim</th><th>Suất</th><th>Tiền</th><th>Đặt vé</th><th>Thanh toán</th><th></th>
+                            <th>Mã</th><th>Phim</th><th>Suất</th><th>Tiền</th><th>Đặt vé</th><th>Thanh toán</th><th>Phương thức</th><th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -74,6 +74,7 @@ export function AdminBookingsPage() {
                                 <td>{money(booking.totalAmount)}</td>
                                 <td><StatusBadge value={booking.status} /></td>
                                 <td><StatusBadge value={booking.paymentStatus} /></td>
+                                <td><div className="admin-payment-method"><strong>{booking.paymentProvider ?? "—"}</strong><small>{booking.paymentBankCode ?? booking.paymentCardType ?? "Chưa có giao dịch"}</small></div></td>
                                 <td><Link className="btn btn-sm btn-secondary" to={`/admin/bookings/${booking.id}`}>Chi tiết</Link></td>
                             </tr>
                         ))}

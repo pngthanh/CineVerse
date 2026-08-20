@@ -9,6 +9,13 @@ public record PaymentResponse(
         String bookingStatus,
         String paymentStatus,
         BigDecimal amount,
+        String provider,
+        String method,
+        String transactionReference,
+        String gatewayTransactionNo,
+        String bankCode,
+        String cardType,
+        String responseCode,
         Instant paidAt,
         String ticketCode) {
 }

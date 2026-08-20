@@ -78,6 +78,14 @@ export function AdminBookingDetailPage() {
                 <aside className="panel sticky">
                     <h3>Thanh toán</h3>
                     <div className="summary-row"><span>Trạng thái</span><StatusBadge value={booking.paymentStatus} /></div>
+                    <div className="summary-row"><span>Cổng thanh toán</span><strong>{booking.paymentProvider ?? 'Chưa khởi tạo'}</strong></div>
+                    <div className="summary-row"><span>Phương thức</span><strong>{booking.paymentMethod ?? '—'}</strong></div>
+                    <div className="summary-row"><span>Ngân hàng</span><strong>{booking.paymentBankCode ?? '—'}</strong></div>
+                    <div className="summary-row"><span>Loại thẻ</span><strong>{booking.paymentCardType ?? '—'}</strong></div>
+                    <div className="summary-row"><span>Mã tham chiếu</span><strong className="mono-value">{booking.paymentTransactionReference ?? '—'}</strong></div>
+                    <div className="summary-row"><span>Mã giao dịch VNPAY</span><strong className="mono-value">{booking.paymentTransactionNo ?? '—'}</strong></div>
+                    <div className="summary-row"><span>Mã phản hồi</span><strong>{booking.paymentResponseCode ?? '—'}</strong></div>
+                    {booking.paymentPaidAt && <div className="summary-row"><span>Thanh toán lúc</span><strong>{dateTime(booking.paymentPaidAt)}</strong></div>}
                     <div className="summary-row"><span>Tiền ghế</span><strong>{money(booking.seatAmount)}</strong></div>
                     <div className="summary-row"><span>Bắp nước</span><strong>{money(booking.concessionAmount)}</strong></div>
                     <div className="summary-row"><span>Giá gốc</span><strong>{money(booking.subtotalAmount)}</strong></div>

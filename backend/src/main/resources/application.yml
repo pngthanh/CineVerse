@@ -50,6 +50,11 @@ app:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
+  vnpay:
+    tmn-code: ${VNPAY_TMN_CODE:}
+    hash-secret: ${VNPAY_HASH_SECRET:}
+    pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    return-url: ${VNPAY_RETURN_URL:http://localhost:8080/api/payments/vnpay/return}
 
 springdoc:
   swagger-ui:

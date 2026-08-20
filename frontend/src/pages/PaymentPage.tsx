@@ -5,6 +5,13 @@ import { useCountdown } from '../hooks/useCountdown';
 import { ApiError, api } from '../lib/api';
 import { money } from '../lib/format';
 import type { Booking } from '../types';
+
+interface VnPayCreateResponse {
+  bookingId: number;
+  transactionReference: string;
+  paymentUrl: string;
+}
+
 export function PaymentPage() {
   const navigate = useNavigate();
   const booking = useMemo(() => {
@@ -17,40 +24,41 @@ export function PaymentPage() {
   const countdown = useCountdown(booking?.expiresAt);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const pay = async (result: 'SUCCESS' | 'FAILED') => {
+
+  const payWithVnPay = async () => {
     if (!booking || countdown.expired) return;
     setLoading(true);
     setError('');
     try {
-      await api('/payments/mock', {
+      const response = await api<VnPayCreateResponse>('/payments/vnpay/create', {
         method: 'POST',
-        body: JSON.stringify({ bookingId: booking.id, result }),
+        body: JSON.stringify({ bookingId: booking.id }),
       });
-      sessionStorage.removeItem('cineverse_booking');
-      sessionStorage.removeItem('cineverse_hold');
-      navigate(
-        result === 'SUCCESS'
-          ? `/booking-confirmed?id=${booking.id}`
-          : `/payment-failed?id=${booking.id}`,
-      );
+      window.location.assign(response.paymentUrl);
     } catch (requestError) {
       setError(
-        requestError instanceof ApiError ? requestError.message : 'Không thể xử lý thanh toán.',
+        requestError instanceof ApiError
+          ? requestError.message
+          : 'Không thể khởi tạo giao dịch VNPAY.',
       );
-    } finally {
       setLoading(false);
     }
   };
+
   if (!booking) {
     return <div className="page-center">Không có booking chờ thanh toán.</div>;
   }
+
   return (
     <div className="container page">
       <BookingSteps active={4} />
       <div className="page-title">
-        <span className="eyebrow">THANH TOÁN MÔ PHỎNG</span>
-        <h1>Thanh toán mô phỏng</h1>
-        <p>Trang này chỉ mô phỏng luồng thanh toán. Không xử lý tiền thật.</p>
+        <span className="eyebrow">VNPAY SANDBOX</span>
+        <h1>Thanh toán qua VNPAY</h1>
+        <p>
+          Giao dịch được chuyển sang Cổng thanh toán VNPAY Sandbox để kiểm thử luồng thanh toán thực
+          tế.
+        </p>
       </div>
 
       <div className={`hold-timer ${countdown.expired ? 'expired' : ''}`} role="status">
@@ -65,33 +73,57 @@ export function PaymentPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="two-col">
-        <section className="panel">
-          <h3>Cổng thanh toán CineVerse Demo</h3>
-          <p>Chọn kết quả để kiểm thử luồng booking.</p>
+      <div className="two-col payment-vnpay-layout">
+        <section className="panel vnpay-payment-card">
+          <span className="eyebrow">PHƯƠNG THỨC THANH TOÁN</span>
+          <h2>VNPAY</h2>
+          <p>
+            Bạn sẽ được chuyển sang trang VNPAY Sandbox để chọn ngân hàng hoặc hình thức thanh toán.
+            CineVerse chỉ xác nhận vé sau khi backend kiểm tra chữ ký và trạng thái giao dịch trả về
+            từ VNPAY.
+          </p>
+
           <button
             disabled={loading || countdown.expired}
-            className="btn btn-block"
-            onClick={() => pay('SUCCESS')}
+            className="btn btn-block vnpay-pay-button"
+            onClick={() => void payWithVnPay()}
           >
-            {loading ? 'Đang xử lý...' : 'Mô phỏng thành công'}
+            {loading
+              ? 'Đang chuyển sang VNPAY...'
+              : `Thanh toán ${money(booking.totalAmount)} qua VNPAY`}
           </button>
           <button
-            disabled={loading || countdown.expired}
-            className="btn btn-danger btn-block"
-            onClick={() => pay('FAILED')}
+            className="btn btn-secondary btn-block"
+            onClick={() => navigate('/checkout')}
+            disabled={loading}
           >
-            Mô phỏng thất bại
+            Quay lại kiểm tra đơn hàng
           </button>
         </section>
 
-        <aside className="panel">
+        <aside className="panel sticky">
           <h3>Đơn hàng</h3>
-          <p>{booking.showtime.movieTitle}</p>
+          <p>
+            <strong>{booking.showtime.movieTitle}</strong>
+          </p>
           <p className="muted">
             {booking.showtime.cinemaName} · {booking.showtime.roomName}
           </p>
           <p>Ghế {booking.seats.map((seat) => seat.code).join(', ')}</p>
+          <div className="summary-row">
+            <span>Tiền ghế</span>
+            <strong>{money(booking.seatAmount)}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Bắp nước</span>
+            <strong>{money(booking.concessionAmount)}</strong>
+          </div>
+          {booking.discountAmount > 0 && (
+            <div className="summary-row discount-row">
+              <span>Ưu đãi</span>
+              <strong>-{money(booking.discountAmount)}</strong>
+            </div>
+          )}
           <div className="summary-row total">
             <span>Tổng</span>
             <strong>{money(booking.totalAmount)}</strong>

@@ -8,7 +8,6 @@ import com.pngthanh.cineverse.common.enums.BookingStatus;
 import com.pngthanh.cineverse.common.enums.PaymentStatus;
 import com.pngthanh.cineverse.common.enums.ShowtimeSeatStatus;
 import com.pngthanh.cineverse.common.exception.ApiException;
-import com.pngthanh.cineverse.payment.dto.MockPaymentRequest;
 import com.pngthanh.cineverse.payment.dto.PaymentResponse;
 import com.pngthanh.cineverse.payment.entity.Payment;
 import com.pngthanh.cineverse.payment.repository.PaymentRepository;
@@ -18,6 +17,7 @@ import com.pngthanh.cineverse.ticket.repository.TicketRepository;
 import com.pngthanh.cineverse.user.entity.User;
 import com.pngthanh.cineverse.user.service.UserService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -46,29 +46,66 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResponse mock(String email, MockPaymentRequest request) {
+    public Payment prepareVnPay(String email, Long bookingId, String transactionReference) {
         User user = users.requireByEmail(email);
-        Booking booking = bookings.requireForUpdate(request.bookingId());
-
-        if (!Objects.equals(booking.getUser().getId(), user.getId())) {
-            throw new ApiException(
-                    HttpStatus.FORBIDDEN,
-                    "BOOKING_FORBIDDEN",
-                    "Bạn không có quyền thao tác booking này.");
-        }
+        Booking booking = bookings.requireForUpdate(bookingId);
+        requireBookingOwner(user, booking);
 
         Payment payment = payments.findByBookingId(booking.getId())
                 .orElseGet(() -> createPendingPayment(booking));
 
-        // Request lặp lại sau khi thanh toán thành công phải trả lại cùng kết quả.
         if (booking.getStatus() == BookingStatus.CONFIRMED
                 && payment.getStatus() == PaymentStatus.SUCCESS) {
-            String ticketCode = tickets.findByBookingId(booking.getId())
-                    .map(Ticket::getTicketCode)
-                    .orElse(null);
-            return toResponse(booking, payment, ticketCode);
+            return payment;
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "BOOKING_NOT_PENDING",
+                    "Booking không còn ở trạng thái chờ thanh toán.");
+        }
+        if (!booking.getExpiresAt().isAfter(Instant.now())) {
+            booking.setStatus(BookingStatus.CANCELLED);
+            bookings.releaseHeldSeats(booking);
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setResponseCode("EXPIRED");
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "BOOKING_EXPIRED",
+                    "Thời gian giữ ghế đã hết.");
         }
 
+        payment.setAmount(booking.getTotalAmount());
+        payment.setProvider("VNPAY");
+        payment.setMethod("VNPAY");
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setTransactionReference(transactionReference);
+        payment.setGatewayTransactionNo(null);
+        payment.setBankTransactionNo(null);
+        payment.setBankCode(null);
+        payment.setCardType(null);
+        payment.setResponseCode(null);
+        payment.setTransactionStatus(null);
+        payment.setCallbackSource(null);
+        return payment;
+    }
+
+    @Transactional
+    public PaymentResponse confirmVnPay(
+            Payment payment,
+            String gatewayTransactionNo,
+            String bankTransactionNo,
+            String bankCode,
+            String cardType,
+            String responseCode,
+            String transactionStatus,
+            String callbackSource) {
+        Booking booking = bookings.requireForUpdate(payment.getBooking().getId());
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED
+                && payment.getStatus() == PaymentStatus.SUCCESS) {
+            return toResponse(booking, payment, ticketCode(booking));
+        }
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new ApiException(
                     HttpStatus.CONFLICT,
@@ -76,23 +113,8 @@ public class PaymentService {
                     "Booking không còn ở trạng thái chờ thanh toán.");
         }
 
-        if (booking.getExpiresAt().isBefore(Instant.now())) {
-            booking.setStatus(BookingStatus.CANCELLED);
-            bookings.releaseHeldSeats(booking);
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "BOOKING_EXPIRED",
-                    "Thời gian giữ ghế đã hết.");
-        }
-
-        if (request.result() == MockPaymentRequest.Result.SUCCESS) {
-            return confirmPayment(booking, payment);
-        }
-        return failPayment(booking, payment);
-    }
-
-    private PaymentResponse confirmPayment(Booking booking, Payment payment) {
-        for (BookingSeat bookingSeat : bookingSeats.findAllByBookingId(booking.getId())) {
+        List<BookingSeat> seats = bookingSeats.findAllByBookingId(booking.getId());
+        for (BookingSeat bookingSeat : seats) {
             ShowtimeSeat showtimeSeat = bookingSeat.getShowtimeSeat();
             boolean validSeat = showtimeSeat.getStatus() == ShowtimeSeatStatus.HELD
                     && Objects.equals(showtimeSeat.getHoldToken(), booking.getHoldToken());
@@ -100,18 +122,25 @@ public class PaymentService {
                 throw new ApiException(
                         HttpStatus.CONFLICT,
                         "SEAT_STATE_CHANGED",
-                        "Trạng thái ghế đã thay đổi. Vui lòng đặt lại.");
+                        "Trạng thái ghế đã thay đổi. Vui lòng liên hệ quản trị viên.");
             }
         }
 
         payment.setStatus(PaymentStatus.SUCCESS);
+        payment.setGatewayTransactionNo(gatewayTransactionNo);
+        payment.setBankTransactionNo(bankTransactionNo);
+        payment.setBankCode(bankCode);
+        payment.setCardType(cardType);
+        payment.setResponseCode(responseCode);
+        payment.setTransactionStatus(transactionStatus);
+        payment.setCallbackSource(callbackSource);
         payment.setPaidAt(Instant.now());
         booking.setStatus(BookingStatus.CONFIRMED);
-        var movie = booking.getShowtime().getMovie();
-        movie.setTicketsSold((movie.getTicketsSold() == null ? 0L : movie.getTicketsSold())
-                + bookingSeats.findAllByBookingId(booking.getId()).size());
 
-        for (BookingSeat bookingSeat : bookingSeats.findAllByBookingId(booking.getId())) {
+        var movie = booking.getShowtime().getMovie();
+        movie.setTicketsSold((movie.getTicketsSold() == null ? 0L : movie.getTicketsSold()) + seats.size());
+
+        for (BookingSeat bookingSeat : seats) {
             ShowtimeSeat showtimeSeat = bookingSeat.getShowtimeSeat();
             showtimeSeat.setStatus(ShowtimeSeatStatus.BOOKED);
             showtimeSeat.setHeldByUserId(null);
@@ -124,17 +153,49 @@ public class PaymentService {
         return toResponse(booking, payment, ticket.getTicketCode());
     }
 
-    private PaymentResponse failPayment(Booking booking, Payment payment) {
-        payment.setStatus(PaymentStatus.FAILED);
-        booking.setStatus(BookingStatus.CANCELLED);
-        bookings.releaseHeldSeats(booking);
-        return toResponse(booking, payment, null);
+    @Transactional
+    public PaymentResponse markVnPayFailed(
+            Payment payment,
+            String gatewayTransactionNo,
+            String bankTransactionNo,
+            String bankCode,
+            String cardType,
+            String responseCode,
+            String transactionStatus,
+            String callbackSource) {
+        Booking booking = bookings.requireForUpdate(payment.getBooking().getId());
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setGatewayTransactionNo(gatewayTransactionNo);
+            payment.setBankTransactionNo(bankTransactionNo);
+            payment.setBankCode(bankCode);
+            payment.setCardType(cardType);
+            payment.setResponseCode(responseCode);
+            payment.setTransactionStatus(transactionStatus);
+            payment.setCallbackSource(callbackSource);
+            if (booking.getStatus() == BookingStatus.PENDING) {
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookings.releaseHeldSeats(booking);
+            }
+        }
+        return toResponse(booking, payment, ticketCode(booking));
+    }
+
+    private void requireBookingOwner(User user, Booking booking) {
+        if (!Objects.equals(booking.getUser().getId(), user.getId())) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "BOOKING_FORBIDDEN",
+                    "Bạn không có quyền thao tác booking này.");
+        }
     }
 
     private Payment createPendingPayment(Booking booking) {
         Payment payment = new Payment();
         payment.setBooking(booking);
         payment.setAmount(booking.getTotalAmount());
+        payment.setProvider("VNPAY");
+        payment.setMethod("VNPAY");
         return payments.save(payment);
     }
 
@@ -145,6 +206,12 @@ public class PaymentService {
         return tickets.save(ticket);
     }
 
+    private String ticketCode(Booking booking) {
+        return tickets.findByBookingId(booking.getId())
+                .map(Ticket::getTicketCode)
+                .orElse(null);
+    }
+
     private PaymentResponse toResponse(Booking booking, Payment payment, String ticketCode) {
         return new PaymentResponse(
                 payment.getId(),
@@ -152,6 +219,13 @@ public class PaymentService {
                 booking.getStatus().name(),
                 payment.getStatus().name(),
                 payment.getAmount(),
+                payment.getProvider(),
+                payment.getMethod(),
+                payment.getTransactionReference(),
+                payment.getGatewayTransactionNo(),
+                payment.getBankCode(),
+                payment.getCardType(),
+                payment.getResponseCode(),
                 payment.getPaidAt(),
                 ticketCode);
     }
