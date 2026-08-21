@@ -203,6 +203,7 @@ public class PaymentService {
         Ticket ticket = new Ticket();
         ticket.setBooking(booking);
         ticket.setTicketCode("CV-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        ticket.setQrToken(UUID.randomUUID().toString().replace("-", ""));
         return tickets.save(ticket);
     }
 

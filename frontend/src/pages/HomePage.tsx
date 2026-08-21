@@ -87,18 +87,18 @@ export function HomePage() {
             <div className="container">
                 <div className="section-head voucher-showcase-head">
                     <div><span className="section-kicker">ƯU ĐÃI CINEVERSE</span><h2>Mã giảm giá dành cho bạn</h2><p>Lưu mã vào tài khoản và chọn nhanh khi thanh toán.</p></div>
-                    <div className="voucher-slider-actions">
-                        <button type="button" aria-label="Voucher trước" onClick={() => setVoucherIndex((current) => (current - 1 + vouchers.length) % vouchers.length)}>‹</button>
-                        <button type="button" aria-label="Voucher tiếp theo" onClick={() => setVoucherIndex((current) => (current + 1) % vouchers.length)}>›</button>
-                    </div>
                 </div>
                 {voucherMessage && <p className="voucher-inline-message">{voucherMessage}</p>}
-                <div className="voucher-slider-grid">
+                <div className="voucher-slider-shell">
+                    <button className="voucher-side-arrow voucher-side-arrow-left" type="button" aria-label="Voucher trước" onClick={() => setVoucherIndex((current) => (current - 1 + vouchers.length) % vouchers.length)}>‹</button>
+                    <div className="voucher-slider-grid">
                     {visibleVouchers.map((voucher) => <article className="voucher-promo-card" key={voucher.id}>
                         <div className="voucher-promo-value">{voucher.discountType === 'PERCENT' ? `${voucher.discountValue}%` : money(voucher.discountValue)}</div>
                         <div className="voucher-promo-copy"><span>{voucher.movieTitle ? `Dành cho ${voucher.movieTitle}` : 'Áp dụng tại CineVerse'}</span><h3>{voucher.title}</h3><p>{voucher.description || `Đơn tối thiểu ${money(voucher.minOrderAmount)}.`}</p><div className="voucher-code-line"><code>{voucher.code}</code><small>HSD {new Date(voucher.expiresAt).toLocaleDateString('vi-VN')}</small></div></div>
                         <button className={`btn btn-sm ${voucher.saved ? 'btn-secondary' : ''}`} type="button" disabled={voucher.saved} onClick={() => void saveVoucher(voucher)}>{voucher.saved ? 'Đã lưu' : 'Lưu mã'}</button>
                     </article>)}
+                    </div>
+                    <button className="voucher-side-arrow voucher-side-arrow-right" type="button" aria-label="Voucher tiếp theo" onClick={() => setVoucherIndex((current) => (current + 1) % vouchers.length)}>›</button>
                 </div>
                 <div className="voucher-slider-dots">{vouchers.map((voucher, index) => <button key={voucher.id} className={index === voucherIndex ? 'active' : ''} type="button" onClick={() => setVoucherIndex(index)} aria-label={`Voucher ${index + 1}`} />)}</div>
             </div>

@@ -106,6 +106,8 @@ public class AuthService {
                         user.getWardName(),
                         user.getAddressDetail(),
                         user.getRole().name(),
+                        user.getAssignedCinema() == null ? null : user.getAssignedCinema().getId(),
+                        user.getAssignedCinema() == null ? null : user.getAssignedCinema().getName(),
                         user.getStatus().name(),
                         user.getCreatedAt()));
     }

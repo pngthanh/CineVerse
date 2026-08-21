@@ -25,6 +25,8 @@ public record AuthResponse(
             String wardName,
             String addressDetail,
             String role,
+            Long assignedCinemaId,
+            String assignedCinemaName,
             String status,
             Instant createdAt) {
     }

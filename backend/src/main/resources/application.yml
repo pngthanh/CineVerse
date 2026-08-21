@@ -44,6 +44,9 @@ app:
   booking:
     seat-hold-minutes: 5
     sales-cutoff-minutes: 20
+  check-in:
+    opens-before-minutes: 30
+    closes-after-start-minutes: 30
   media:
     upload-dir: ${MEDIA_UPLOAD_DIR:uploads/movies}
   mail:

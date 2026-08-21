@@ -22,7 +22,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     const token = localStorage.getItem('cineverse_token');
     const headers = new Headers(options.headers);
 
-    if (!headers.has('Content-Type') && options.body) {
+    if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
     }
     if (token) {
@@ -75,4 +75,15 @@ export async function apiUploadImage(file: File): Promise<string> {
     }
     const data = await response.json() as { url: string };
     return data.url;
+}
+
+export async function apiBlob(path: string): Promise<Blob> {
+    const token = localStorage.getItem('cineverse_token');
+    const headers = new Headers();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const response = await fetch(`${API_URL}${path}`, { headers });
+    if (!response.ok) {
+        throw new ApiError(response.status, 'FILE_DOWNLOAD_FAILED', 'Không thể tải dữ liệu vé.');
+    }
+    return response.blob();
 }

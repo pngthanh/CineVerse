@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { StatusBadge } from '../components/StatusBadge';
+import { TicketQrCard } from '../components/TicketQrCard';
 import { api } from '../lib/api';
 import { dateTime, money, seatTypeLabel } from '../lib/format';
 import type { Booking } from '../types';
@@ -57,6 +58,7 @@ export function BookingDetailPage() {
                     <hr />
                     <h3>Vé điện tử</h3>
                     <div className="ticket-code">{booking.ticketCode ?? 'Chưa phát hành'}</div>
+                    {booking.ticketCode && booking.ticketStatus !== 'CANCELLED' && <TicketQrCard ticketCode={booking.ticketCode} />}
 
                     {booking.concessions.length > 0 && (
                         <>
@@ -92,6 +94,8 @@ export function BookingDetailPage() {
                             <dt>Trạng thái vé</dt>
                             <dd><StatusBadge value={booking.ticketStatus} /></dd>
                         </div>
+                        {booking.ticketCheckedInAt && <div><dt>Check-in lúc</dt><dd>{dateTime(booking.ticketCheckedInAt)}</dd></div>}
+                        {booking.ticketCheckedInByName && <div><dt>Nhân viên check-in</dt><dd>{booking.ticketCheckedInByName}</dd></div>}
                     </div>
                 </section>
 

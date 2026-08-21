@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Optional<Ticket> findByBookingId(Long bookingId);
 
-    Optional<Ticket> findByTicketCode(String ticketCode);
+    Optional<Ticket> findByTicketCodeIgnoreCase(String ticketCode);
+
+    Optional<Ticket> findByQrToken(String qrToken);
 }

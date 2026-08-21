@@ -2,6 +2,7 @@ package com.pngthanh.cineverse.user.entity;
 
 import com.pngthanh.cineverse.common.enums.Role;
 import com.pngthanh.cineverse.common.enums.UserStatus;
+import com.pngthanh.cineverse.cinema.entity.Cinema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,7 +10,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
@@ -73,6 +77,10 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role = Role.CUSTOMER;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_cinema_id")
+    private Cinema assignedCinema;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
@@ -113,6 +121,8 @@ public class User {
     public void setAddressDetail(String addressDetail) { this.addressDetail = addressDetail; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public Cinema getAssignedCinema() { return assignedCinema; }
+    public void setAssignedCinema(Cinema assignedCinema) { this.assignedCinema = assignedCinema; }
     public UserStatus getStatus() { return status; }
     public void setStatus(UserStatus status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }

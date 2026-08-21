@@ -31,7 +31,9 @@ public record BookingResponse(
         String paymentResponseCode,
         Instant paymentPaidAt,
         String ticketCode,
-        String ticketStatus) {
+        String ticketStatus,
+        Instant ticketCheckedInAt,
+        String ticketCheckedInByName) {
 
 
     public record UserInfo(

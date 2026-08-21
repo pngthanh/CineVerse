@@ -1,4 +1,4 @@
-export type Role = 'CUSTOMER' | 'ADMIN';
+export type Role = 'CUSTOMER' | 'STAFF' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'LOCKED';
 export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON' | 'INACTIVE';
 export type SeatType = 'NORMAL' | 'VIP' | 'COUPLE';
@@ -24,6 +24,8 @@ export interface UserProfile {
     wardName?: string;
     addressDetail?: string;
     role: Role;
+    assignedCinemaId?: number;
+    assignedCinemaName?: string;
     status: UserStatus;
     createdAt: string;
 }
@@ -161,6 +163,8 @@ export interface Booking {
     paymentPaidAt?: string;
     ticketCode?: string;
     ticketStatus?: TicketStatus;
+    ticketCheckedInAt?: string;
+    ticketCheckedInByName?: string;
 }
 
 
@@ -205,4 +209,25 @@ export interface ConcessionItem {
 
 export interface AdminConcessionItem extends ConcessionItem {
     active: boolean;
+}
+
+export interface StaffTicketCheck {
+    ticketCode: string;
+    ticketStatus: TicketStatus;
+    bookingStatus: BookingStatus;
+    paymentStatus?: PaymentStatus;
+    movieTitle: string;
+    cinemaId: number;
+    cinemaName: string;
+    roomName: string;
+    startTime: string;
+    seats: string[];
+    customerName: string;
+    staffCinemaId: number;
+    staffCinemaName: string;
+    sameCinema: boolean;
+    canCheckIn: boolean;
+    validationMessage: string;
+    checkedInAt?: string;
+    checkedInByName?: string;
 }

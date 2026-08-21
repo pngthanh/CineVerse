@@ -94,6 +94,8 @@ export function AdminBookingDetailPage() {
                     <div className="summary-row total"><span>Thành tiền</span><strong>{money(booking.totalAmount)}</strong></div>
                     <div className="summary-row"><span>Mã vé</span><strong>{booking.ticketCode ?? 'Chưa phát hành'}</strong></div>
                     <div className="summary-row"><span>Trạng thái vé</span><StatusBadge value={booking.ticketStatus} /></div>
+                    {booking.ticketCheckedInAt && <div className="summary-row"><span>Check-in lúc</span><strong>{dateTime(booking.ticketCheckedInAt)}</strong></div>}
+                    {booking.ticketCheckedInByName && <div className="summary-row"><span>Nhân viên check-in</span><strong>{booking.ticketCheckedInByName}</strong></div>}
                 </aside>
             </div>
         </div>

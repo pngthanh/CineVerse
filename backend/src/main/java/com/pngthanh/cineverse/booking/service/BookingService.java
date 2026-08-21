@@ -301,7 +301,11 @@ public class BookingService {
                 payment == null ? null : payment.getResponseCode(),
                 payment == null ? null : payment.getPaidAt(),
                 ticket == null ? null : ticket.getTicketCode(),
-                ticket == null ? null : ticket.getStatus().name());
+                ticket == null ? null : ticket.getStatus().name(),
+                ticket == null ? null : ticket.getCheckedInAt(),
+                ticket == null || ticket.getCheckedInBy() == null
+                        ? null
+                        : ticket.getCheckedInBy().getFullName());
     }
 
     public void releaseHeldSeats(Booking booking) {

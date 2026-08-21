@@ -1,6 +1,7 @@
 package com.pngthanh.cineverse.admin.service;
 
 import com.pngthanh.cineverse.admin.dto.DashboardResponse;
+import com.pngthanh.cineverse.admin.dto.StaffAssignmentRequest;
 import com.pngthanh.cineverse.booking.dto.BookingResponse;
 import com.pngthanh.cineverse.booking.entity.Booking;
 import com.pngthanh.cineverse.booking.entity.BookingConcession;
@@ -11,6 +12,7 @@ import com.pngthanh.cineverse.booking.repository.BookingSeatRepository;
 import com.pngthanh.cineverse.booking.service.BookingService;
 import com.pngthanh.cineverse.cinema.repository.CinemaRepository;
 import com.pngthanh.cineverse.common.enums.BookingStatus;
+import com.pngthanh.cineverse.common.enums.Role;
 import com.pngthanh.cineverse.common.enums.UserStatus;
 import com.pngthanh.cineverse.common.exception.ApiException;
 import com.pngthanh.cineverse.movie.repository.MovieRepository;
@@ -199,6 +201,45 @@ public class AdminService {
                         "USER_NOT_FOUND",
                         "Không tìm thấy người dùng."));
         user.setStatus(status);
+        return userService.toResponse(user);
+    }
+
+    @Transactional
+    public UserProfileResponse updateStaffAssignment(Long id, StaffAssignmentRequest request) {
+        User user = users.findById(id)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "Không tìm thấy người dùng."));
+        if (user.getRole() == Role.ADMIN) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "ADMIN_ROLE_PROTECTED",
+                    "Không thể thay đổi phân công của tài khoản quản trị tại đây.");
+        }
+        if (request.role() == Role.ADMIN) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "ADMIN_ROLE_NOT_ALLOWED",
+                    "Không thể cấp quyền quản trị bằng chức năng phân công nhân viên.");
+        }
+        if (request.role() == Role.STAFF) {
+            if (request.cinemaId() == null) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "STAFF_CINEMA_REQUIRED",
+                        "Nhân viên phải được phân công vào một rạp.");
+            }
+            user.setAssignedCinema(cinemas.findById(request.cinemaId())
+                    .orElseThrow(() -> new ApiException(
+                            HttpStatus.NOT_FOUND,
+                            "CINEMA_NOT_FOUND",
+                            "Không tìm thấy rạp được phân công.")));
+            user.setRole(Role.STAFF);
+        } else {
+            user.setRole(Role.CUSTOMER);
+            user.setAssignedCinema(null);
+        }
         return userService.toResponse(user);
     }
 

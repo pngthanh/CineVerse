@@ -11,7 +11,7 @@ export function LoginPage() {
     const [password, setPassword] = useState('Customer@123');
     const [error, setError] = useState('');
 
-    const finishLogin = (role: string) => navigate(role === 'ADMIN' ? '/admin' : '/');
+    const finishLogin = (role: string) => navigate(role === 'ADMIN' ? '/admin' : role === 'STAFF' ? '/staff' : '/');
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
