@@ -124,7 +124,7 @@ export function AdminMoviesPage() {
                 <tbody>{movies.map((movie) => <tr key={movie.id}>
                     <td><div className="admin-movie-cell">{movie.posterUrl && <img src={movie.posterUrl} alt="" />}<div><strong>{movie.title}</strong><small>{movie.durationMinutes} phút · {movie.ageRating}</small></div></div></td>
                     <td>{movie.releaseDate ?? '—'}<br /><small>đến {movie.endDate ?? 'chưa đặt'}</small></td>
-                    <td>{movie.genres}</td><td>{movie.status}</td>
+                    <td>{movie.genres}</td><td>{movie.status === 'NOW_SHOWING' ? 'Đang chiếu' : movie.status === 'COMING_SOON' ? 'Sắp chiếu' : movie.status === 'ENDED' ? 'Đã kết thúc' : 'Không hoạt động'}</td>
                     <td><div className="row table-actions"><button className="btn btn-sm btn-secondary" type="button" onClick={() => startEdit(movie)}>Sửa</button><button className="btn btn-sm btn-danger" type="button" disabled={movie.status === 'INACTIVE'} onClick={() => void deactivate(movie)}>Vô hiệu hóa</button></div></td>
                 </tr>)}</tbody>
             </table>
@@ -144,7 +144,7 @@ export function AdminMoviesPage() {
                     <div><label>Banner / backdrop<input value={form.backdropUrl} onChange={(e) => updateField('backdropUrl', e.target.value)} placeholder="/posters/... hoặc upload ảnh" /></label><label className="file-upload">Upload banner<input type="file" accept="image/*" onChange={(e) => void upload('backdrop', e.target.files?.[0])} /><span>{uploading === 'backdrop' ? 'Đang tải...' : 'Chọn ảnh banner'}</span></label>{form.backdropUrl && <img className="admin-media-preview banner-preview" src={form.backdropUrl} alt="Banner preview" />}</div>
                 </div>
                 <label>Trailer YouTube<input value={form.trailerUrl} onChange={(e) => updateField('trailerUrl', e.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label>
-                <label>Trạng thái<select value={form.status} onChange={(e) => updateField('status', e.target.value as MovieStatus)}><option value="NOW_SHOWING">Đang chiếu</option><option value="COMING_SOON">Sắp chiếu</option><option value="INACTIVE">Không hoạt động</option></select></label>
+                <label>Trạng thái<select value={form.status} onChange={(e) => updateField('status', e.target.value as MovieStatus)}><option value="NOW_SHOWING">Đang chiếu</option><option value="COMING_SOON">Sắp chiếu</option><option value="ENDED">Đã kết thúc</option><option value="INACTIVE">Không hoạt động</option></select></label>
                 <div className="modal-actions"><button className="btn btn-secondary" type="button" onClick={closeModal}>Hủy</button><button className="btn" disabled={uploading !== null}>{editingId ? 'Lưu thay đổi' : 'Thêm phim'}</button></div>
             </form>
         </Modal>

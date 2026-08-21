@@ -1,5 +1,5 @@
 package com.pngthanh.cineverse.common.enums;
 
 public enum PaymentStatus {
-    PENDING, SUCCESS, FAILED
+    PENDING, SUCCESS, REFUND_PENDING, FAILED
 }

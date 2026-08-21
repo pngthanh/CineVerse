@@ -38,6 +38,7 @@ public class ShowtimeService {
     private final PricingService pricing;
     private final Clock clock;
     private final long salesCutoffMinutes;
+    private final ShowtimeCancellationService cancellations;
 
     public ShowtimeService(
             ShowtimeRepository showtimes,
@@ -47,6 +48,7 @@ public class ShowtimeService {
             CinemaService cinemas,
             PricingService pricing,
             Clock clock,
+            ShowtimeCancellationService cancellations,
             @Value("${app.booking.sales-cutoff-minutes:20}") long salesCutoffMinutes) {
         this.showtimes = showtimes;
         this.showtimeSeats = showtimeSeats;
@@ -55,6 +57,7 @@ public class ShowtimeService {
         this.cinemas = cinemas;
         this.pricing = pricing;
         this.clock = clock;
+        this.cancellations = cancellations;
         this.salesCutoffMinutes = salesCutoffMinutes;
     }
 
@@ -111,6 +114,26 @@ public class ShowtimeService {
                     "ROOM_INACTIVE",
                     "Không thể tạo suất chiếu cho rạp hoặc phòng đang ngừng hoạt động.");
         }
+        if (!movies.isShowingOn(movie, request.startTime().toLocalDate())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "MOVIE_NOT_SHOWING_ON_DATE",
+                    "Phim không nằm trong thời gian phát hành tại ngày của suất chiếu.");
+        }
+        if (room.getCinema().getClosesAt() != null
+                && !request.startTime().isBefore(room.getCinema().getClosesAt())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "CINEMA_CLOSED_AT_SHOWTIME",
+                    "Rạp đã có lịch đóng trước thời điểm suất chiếu này.");
+        }
+        if (room.getClosesAt() != null && !request.startTime().isBefore(room.getClosesAt())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "ROOM_CLOSED_AT_SHOWTIME",
+                    "Phòng đã có lịch đóng trước thời điểm suất chiếu này.");
+        }
+
         LocalDateTime endTime = request.startTime().plusMinutes(movie.getDurationMinutes());
 
         if (showtimes.hasConflict(room.getId(), request.startTime(), endTime, null)) {
@@ -164,7 +187,17 @@ public class ShowtimeService {
     @Transactional
     public void cancel(Long id) {
         Showtime showtime = require(id);
-        showtime.setActive(false);
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!showtime.getStartTime().isAfter(now)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "SHOWTIME_ALREADY_STARTED",
+                    "Không thể hủy suất chiếu đã bắt đầu.");
+        }
+        cancellations.cancel(
+                showtime,
+                "Suất chiếu bị hủy bởi quản trị viên.",
+                now);
     }
 
     public Showtime require(Long id) {
@@ -239,6 +272,8 @@ public class ShowtimeService {
                 showtime.getBasePrice(),
                 showtime.isActive(),
                 lifecycleStatus(showtime, now).name(),
-                isBookable(showtime, now));
+                isBookable(showtime, now),
+                showtime.getCancelledAt(),
+                showtime.getCancellationReason());
     }
 }

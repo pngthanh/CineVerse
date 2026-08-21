@@ -21,11 +21,11 @@ public class MovieController {
 
     @GetMapping
     public List<MovieResponse> list(@RequestParam(required = false) MovieStatus status) {
-        return movieService.list(status);
+        return movieService.listPublic(status);
     }
 
     @GetMapping("/{id}")
     public MovieResponse get(@PathVariable Long id) {
-        return movieService.get(id);
+        return movieService.getPublic(id);
     }
 }

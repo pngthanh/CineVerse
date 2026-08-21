@@ -17,6 +17,8 @@ public record BookingResponse(
         BigDecimal discountAmount,
         BigDecimal totalAmount,
         String voucherCode,
+        String cancellationReason,
+        Instant refundRequestedAt,
         UserInfo user,
         ShowtimeInfo showtime,
         List<SeatInfo> seats,

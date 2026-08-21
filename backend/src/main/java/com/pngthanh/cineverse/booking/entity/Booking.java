@@ -43,6 +43,10 @@ public class Booking {
     private String voucherCode;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private BookingStatus status = BookingStatus.PENDING;
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+    @Column(name = "refund_requested_at")
+    private Instant refundRequestedAt;
     @Column(nullable = false)
     private Instant expiresAt;
     @Column(nullable = false, updatable = false)
@@ -69,6 +73,10 @@ public class Booking {
     public void setVoucherCode(String voucherCode) { this.voucherCode = voucherCode; }
     public BookingStatus getStatus() { return status; }
     public void setStatus(BookingStatus status) { this.status = status; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public Instant getRefundRequestedAt() { return refundRequestedAt; }
+    public void setRefundRequestedAt(Instant refundRequestedAt) { this.refundRequestedAt = refundRequestedAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
     public Instant getCreatedAt() { return createdAt; }

@@ -48,6 +48,10 @@ public class Payment {
     @Column(name = "callback_source", length = 20)
     private String callbackSource;
     private Instant paidAt;
+    @Column(name = "refund_requested_at")
+    private Instant refundRequestedAt;
+    @Column(name = "refund_reason", length = 500)
+    private String refundReason;
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -80,5 +84,9 @@ public class Payment {
     public void setCallbackSource(String callbackSource) { this.callbackSource = callbackSource; }
     public Instant getPaidAt() { return paidAt; }
     public void setPaidAt(Instant paidAt) { this.paidAt = paidAt; }
+    public Instant getRefundRequestedAt() { return refundRequestedAt; }
+    public void setRefundRequestedAt(Instant refundRequestedAt) { this.refundRequestedAt = refundRequestedAt; }
+    public String getRefundReason() { return refundReason; }
+    public void setRefundReason(String refundReason) { this.refundReason = refundReason; }
     public Instant getCreatedAt() { return createdAt; }
 }

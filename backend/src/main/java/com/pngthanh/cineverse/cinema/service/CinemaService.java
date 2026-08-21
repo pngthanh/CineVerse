@@ -3,6 +3,7 @@ package com.pngthanh.cineverse.cinema.service;
 import com.pngthanh.cineverse.cinema.dto.CinemaRequest;
 import com.pngthanh.cineverse.cinema.dto.CinemaResponse;
 import com.pngthanh.cineverse.cinema.dto.RoomRequest;
+import com.pngthanh.cineverse.cinema.dto.LifecycleScheduleRequest;
 import com.pngthanh.cineverse.cinema.entity.Cinema;
 import com.pngthanh.cineverse.cinema.entity.Room;
 import com.pngthanh.cineverse.cinema.entity.Seat;
@@ -12,6 +13,7 @@ import com.pngthanh.cineverse.cinema.repository.SeatRepository;
 import com.pngthanh.cineverse.common.enums.SeatType;
 import com.pngthanh.cineverse.common.exception.ApiException;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeRepository;
+import com.pngthanh.cineverse.showtime.service.ShowtimeCancellationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -27,16 +29,19 @@ public class CinemaService {
     private final RoomRepository rooms;
     private final SeatRepository seats;
     private final ShowtimeRepository showtimes;
+    private final ShowtimeCancellationService cancellations;
 
     public CinemaService(
             CinemaRepository cinemas,
             RoomRepository rooms,
             SeatRepository seats,
-            ShowtimeRepository showtimes) {
+            ShowtimeRepository showtimes,
+            ShowtimeCancellationService cancellations) {
         this.cinemas = cinemas;
         this.rooms = rooms;
         this.seats = seats;
         this.showtimes = showtimes;
+        this.cancellations = cancellations;
     }
 
     @Transactional(readOnly = true)
@@ -77,29 +82,47 @@ public class CinemaService {
     @Transactional
     public CinemaResponse update(Long id, CinemaRequest request) {
         Cinema cinema = requireCinema(id);
+        boolean wasActive = cinema.isActive();
         cinema.setName(request.name().trim());
         cinema.setAddress(request.address().trim());
+        if (wasActive && !request.active()) {
+            return scheduleCinemaClosure(id, new LifecycleScheduleRequest(
+                    LocalDateTime.now(),
+                    "Rạp ngừng hoạt động theo cập nhật của quản trị viên."));
+        }
         cinema.setActive(request.active());
+        if (!wasActive && request.active()) {
+            cinema.setClosesAt(null);
+            cinema.setClosedAt(null);
+            cinema.setClosureReason(null);
+        }
         return toResponse(cinema, true);
     }
 
     @Transactional
     public void deactivateCinema(Long id) {
         Cinema cinema = requireCinema(id);
-        if (showtimes.existsByRoomCinemaIdAndActiveTrueAndStartTimeAfter(
-                id,
-                LocalDateTime.now())) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "CINEMA_HAS_FUTURE_SHOWTIMES",
-                    "Rạp đang có suất chiếu tương lai. Hãy hủy hoặc chuyển các suất đó trước.");
-        }
+        LocalDateTime now = LocalDateTime.now();
+        scheduleCinemaClosure(id, new LifecycleScheduleRequest(
+                now,
+                "Rạp ngừng hoạt động theo thao tác của quản trị viên."));
         cinema.setActive(false);
-        for (Room room : rooms.findAllByCinemaIdOrderByName(id)) {
-            room.setActive(false);
+        cinema.setClosedAt(now);
+    }
+
+    @Transactional
+    public CinemaResponse scheduleCinemaClosure(Long id, LifecycleScheduleRequest request) {
+        Cinema cinema = requireCinema(id);
+        cinema.setClosesAt(request.closesAt());
+        cinema.setClosureReason(request.reason().trim());
+        LocalDateTime now = LocalDateTime.now();
+        showtimes.findAllByRoomCinemaIdAndActiveTrueOrderByStartTime(id).stream()
+                .filter(showtime -> !showtime.getStartTime().isBefore(request.closesAt()))
+                .forEach(showtime -> cancellations.cancel(showtime, request.reason().trim(), now));
+        if (!request.closesAt().isAfter(now)) {
+            closeCinemaNow(cinema, now);
         }
-        showtimes.findAllByRoomCinemaIdAndActiveTrueOrderByStartTime(id)
-                .forEach(showtime -> showtime.setActive(false));
+        return toResponse(cinema, true);
     }
 
     @Transactional
@@ -158,7 +181,17 @@ public class CinemaService {
                     "Phòng đã có lịch chiếu nên không thể đổi số hàng/ghế. Bạn vẫn có thể sửa tên và giá.");
         }
 
+        boolean wasActive = room.isActive();
         applyRoomRequest(room, request);
+        if (!wasActive && request.active()) {
+            room.setClosesAt(null);
+            room.setClosedAt(null);
+            room.setClosureReason(null);
+        } else if (wasActive && !request.active()) {
+            scheduleRoomClosure(roomId, new LifecycleScheduleRequest(
+                    LocalDateTime.now(),
+                    "Phòng ngừng hoạt động theo cập nhật của quản trị viên."));
+        }
         if (layoutChanged) {
             seats.deleteAllByRoomId(roomId);
             seats.flush();
@@ -171,18 +204,56 @@ public class CinemaService {
 
     @Transactional
     public void deactivateRoom(Long roomId) {
+        LocalDateTime now = LocalDateTime.now();
+        scheduleRoomClosure(roomId, new LifecycleScheduleRequest(
+                now,
+                "Phòng ngừng hoạt động theo thao tác của quản trị viên."));
         Room room = requireRoom(roomId);
-        if (showtimes.existsByRoomIdAndActiveTrueAndStartTimeAfter(
-                roomId,
-                LocalDateTime.now())) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "ROOM_HAS_FUTURE_SHOWTIMES",
-                    "Phòng đang có suất chiếu tương lai. Hãy hủy các suất đó trước.");
-        }
         room.setActive(false);
-        showtimes.findAllByRoomIdAndActiveTrueOrderByStartTime(roomId)
-                .forEach(showtime -> showtime.setActive(false));
+        room.setClosedAt(now);
+    }
+
+    @Transactional
+    public CinemaResponse.RoomResponse scheduleRoomClosure(
+            Long roomId, LifecycleScheduleRequest request) {
+        Room room = requireRoom(roomId);
+        room.setClosesAt(request.closesAt());
+        room.setClosureReason(request.reason().trim());
+        LocalDateTime now = LocalDateTime.now();
+        showtimes.findAllByRoomIdAndActiveTrueOrderByStartTime(roomId).stream()
+                .filter(showtime -> !showtime.getStartTime().isBefore(request.closesAt()))
+                .forEach(showtime -> cancellations.cancel(showtime, request.reason().trim(), now));
+        if (!request.closesAt().isAfter(now)) {
+            room.setActive(false);
+            room.setClosedAt(now);
+        }
+        return toRoomResponse(room);
+    }
+
+    @Transactional
+    public void processDueClosures(LocalDateTime now) {
+        for (Cinema cinema : cinemas.findAllByOrderByName()) {
+            if (cinema.isActive() && cinema.getClosesAt() != null
+                    && !cinema.getClosesAt().isAfter(now)) {
+                closeCinemaNow(cinema, now);
+            }
+        }
+        for (Room room : rooms.findAll()) {
+            if (room.isActive() && room.getClosesAt() != null
+                    && !room.getClosesAt().isAfter(now)) {
+                room.setActive(false);
+                room.setClosedAt(now);
+            }
+        }
+    }
+
+    private void closeCinemaNow(Cinema cinema, LocalDateTime now) {
+        cinema.setActive(false);
+        cinema.setClosedAt(now);
+        for (Room room : rooms.findAllByCinemaIdOrderByName(cinema.getId())) {
+            room.setActive(false);
+            room.setClosedAt(now);
+        }
     }
 
     public Cinema requireCinema(Long id) {
@@ -218,6 +289,9 @@ public class CinemaService {
                 cinema.getName(),
                 cinema.getAddress(),
                 cinema.isActive(),
+                cinema.getClosesAt(),
+                cinema.getClosedAt(),
+                cinema.getClosureReason(),
                 roomResponses);
     }
 
@@ -315,6 +389,9 @@ public class CinemaService {
                 room.getId(),
                 room.getName(),
                 room.isActive(),
+                room.getClosesAt(),
+                room.getClosedAt(),
+                room.getClosureReason(),
                 rowsCount,
                 seatsPerRow,
                 roomSeats.size(),

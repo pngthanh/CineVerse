@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -32,6 +33,15 @@ public class Room {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "closes_at")
+    private LocalDateTime closesAt;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
+    @Column(name = "closure_reason", length = 500)
+    private String closureReason;
 
     @Column(name = "row_count")
     private Integer rowCount = 8;
@@ -75,6 +85,13 @@ public class Room {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    public LocalDateTime getClosesAt() { return closesAt; }
+    public void setClosesAt(LocalDateTime closesAt) { this.closesAt = closesAt; }
+    public LocalDateTime getClosedAt() { return closedAt; }
+    public void setClosedAt(LocalDateTime closedAt) { this.closedAt = closedAt; }
+    public String getClosureReason() { return closureReason; }
+    public void setClosureReason(String closureReason) { this.closureReason = closureReason; }
 
     public Integer getRowCount() {
         return rowCount;

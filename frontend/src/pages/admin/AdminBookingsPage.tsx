@@ -46,6 +46,7 @@ export function AdminBookingsPage() {
                     <option value="">Tất cả trạng thái đặt vé</option>
                     <option value="PENDING">Đang chờ</option>
                     <option value="CONFIRMED">Đã xác nhận</option>
+                    <option value="REFUND_PENDING">Chờ hoàn tiền</option>
                     <option value="CANCELLED">Đã hủy</option>
                     <option value="COMPLETED">Hoàn tất</option>
                 </select>
@@ -53,6 +54,7 @@ export function AdminBookingsPage() {
                     <option value="">Tất cả thanh toán</option>
                     <option value="PENDING">Đang chờ</option>
                     <option value="SUCCESS">Thành công</option>
+                    <option value="REFUND_PENDING">Chờ hoàn tiền</option>
                     <option value="FAILED">Thất bại</option>
                 </select>
                 <span>{filtered.length}/{items.length} booking</span>

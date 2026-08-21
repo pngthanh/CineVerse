@@ -20,6 +20,7 @@ const statusLabels: Record<string, string> = {
     ACTIVE: 'Đang hoạt động',
     LOCKED: 'Đã khóa',
     PENDING: 'Chờ xử lý',
+    REFUND_PENDING: 'Chờ hoàn tiền',
     CONFIRMED: 'Đã xác nhận',
     CANCELLED: 'Đã hủy',
     COMPLETED: 'Hoàn thành',
@@ -40,6 +41,7 @@ const statusLabels: Record<string, string> = {
 const roleLabels: Record<string, string> = {
     CUSTOMER: 'Khách hàng',
     ADMIN: 'Quản trị viên',
+    STAFF: 'Nhân viên',
 };
 
 const seatTypeLabels: Record<SeatType, string> = {

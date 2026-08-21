@@ -47,6 +47,8 @@ export function BookingDetailPage() {
                 <StatusBadge value={booking.status} />
             </div>
 
+            {booking.cancellationReason && <div className="alert alert-error">{booking.status === 'REFUND_PENDING' ? 'Booking đang chờ hoàn tiền: ' : 'Booking đã bị hủy: '}{booking.cancellationReason}</div>}
+
             <div className="two-col">
                 <section className="panel">
                     <h2>{booking.showtime.movieTitle}</h2>

@@ -5,6 +5,7 @@ import com.pngthanh.cineverse.admin.service.AdminService;
 import com.pngthanh.cineverse.cinema.dto.CinemaRequest;
 import com.pngthanh.cineverse.cinema.dto.CinemaResponse;
 import com.pngthanh.cineverse.cinema.dto.RoomRequest;
+import com.pngthanh.cineverse.cinema.dto.LifecycleScheduleRequest;
 import com.pngthanh.cineverse.cinema.service.CinemaService;
 import com.pngthanh.cineverse.movie.dto.MovieRequest;
 import com.pngthanh.cineverse.movie.dto.MovieResponse;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -101,6 +103,14 @@ public class AdminController {
         cinemas.deactivateCinema(id);
     }
 
+
+    @PatchMapping("/cinemas/{id}/closure")
+    public CinemaResponse scheduleCinemaClosure(
+            @PathVariable Long id,
+            @Valid @RequestBody LifecycleScheduleRequest request) {
+        return cinemas.scheduleCinemaClosure(id, request);
+    }
+
     @PostMapping("/cinemas/{id}/rooms")
     @ResponseStatus(HttpStatus.CREATED)
     public CinemaResponse.RoomResponse createRoom(
@@ -120,6 +130,14 @@ public class AdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivateRoom(@PathVariable Long id) {
         cinemas.deactivateRoom(id);
+    }
+
+
+    @PatchMapping("/rooms/{id}/closure")
+    public CinemaResponse.RoomResponse scheduleRoomClosure(
+            @PathVariable Long id,
+            @Valid @RequestBody LifecycleScheduleRequest request) {
+        return cinemas.scheduleRoomClosure(id, request);
     }
 
     @GetMapping("/showtimes")

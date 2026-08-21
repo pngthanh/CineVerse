@@ -31,6 +31,8 @@ export function AdminBookingDetailPage() {
                 <StatusBadge value={booking.status} />
             </div>
 
+            {booking.cancellationReason && <div className="alert alert-error">{booking.status === 'REFUND_PENDING' ? 'Chờ hoàn tiền: ' : 'Lý do hủy: '}{booking.cancellationReason}</div>}
+
             <div className="admin-detail-grid">
                 <section className="panel">
                     <div className="admin-detail-section admin-customer-info">

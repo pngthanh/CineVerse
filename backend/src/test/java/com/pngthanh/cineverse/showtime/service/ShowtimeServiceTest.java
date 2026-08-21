@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.pngthanh.cineverse.booking.service.PricingService;
@@ -54,6 +55,7 @@ class ShowtimeServiceTest {
                 cinemas,
                 pricing,
                 clock,
+                mock(ShowtimeCancellationService.class),
                 20);
     }
 
@@ -62,6 +64,7 @@ class ShowtimeServiceTest {
         Movie movie = mock(Movie.class);
         when(movie.getDurationMinutes()).thenReturn(120);
         when(movies.require(1L)).thenReturn(movie);
+        when(movies.isShowingOn(any(Movie.class), any())).thenReturn(true);
 
         Cinema cinema = mock(Cinema.class);
         when(cinema.isActive()).thenReturn(true);

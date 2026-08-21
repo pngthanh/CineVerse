@@ -17,5 +17,7 @@ public record ShowtimeResponse(
         BigDecimal basePrice,
         boolean active,
         String lifecycleStatus,
-        boolean bookable) {
+        boolean bookable,
+        LocalDateTime cancelledAt,
+        String cancellationReason) {
 }

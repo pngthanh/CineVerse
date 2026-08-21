@@ -276,6 +276,8 @@ public class BookingService {
                 booking.getDiscountAmount() == null ? BigDecimal.ZERO : booking.getDiscountAmount(),
                 booking.getTotalAmount(),
                 booking.getVoucherCode(),
+                booking.getCancellationReason(),
+                booking.getRefundRequestedAt(),
                 new BookingResponse.UserInfo(
                         booking.getUser().getId(),
                         booking.getUser().getFullName(),

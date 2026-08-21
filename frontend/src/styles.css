@@ -524,3 +524,5 @@ select option{background:#151922;color:#f7f7f8;padding:10px}
 
 /* G8 voucher carousel arrows at both sides */
 .voucher-slider-shell{position:relative;padding:0 52px}.voucher-side-arrow{position:absolute;top:50%;z-index:3;width:40px;height:54px;transform:translateY(-50%);border:1px solid #343a46;border-radius:12px;background:#171c24;color:#fff;font-size:28px;line-height:1;cursor:pointer;transition:.18s ease}.voucher-side-arrow:hover{border-color:#ff7777;color:#ff7777;background:#202631}.voucher-side-arrow-left{left:0}.voucher-side-arrow-right{right:0}@media(max-width:1000px){.voucher-slider-shell{padding:0 46px}}@media(max-width:680px){.voucher-slider-shell{padding:0}.voucher-side-arrow{display:none}}
+
+.status-refund_pending,.status-refund-pending{background:#3e321b;color:#f3cf81;border-color:#735d2f}.lifecycle-reason{margin:8px 0 0;font-size:13px}

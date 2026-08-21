@@ -1,10 +1,10 @@
 export type Role = 'CUSTOMER' | 'STAFF' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'LOCKED';
-export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON' | 'INACTIVE';
+export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED' | 'INACTIVE';
 export type SeatType = 'NORMAL' | 'VIP' | 'COUPLE';
 export type SeatStatus = 'AVAILABLE' | 'HELD' | 'BOOKED';
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'REFUND_PENDING' | 'CANCELLED' | 'COMPLETED';
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'REFUND_PENDING' | 'FAILED';
 export type TicketStatus = 'CONFIRMED' | 'USED' | 'CANCELLED';
 
 export interface UserProfile {
@@ -52,6 +52,9 @@ export interface CinemaRoomSummary {
     id: number;
     name: string;
     active: boolean;
+    closesAt?: string;
+    closedAt?: string;
+    closureReason?: string;
     rows: number;
     seatsPerRow: number;
     seatCount: number;
@@ -66,6 +69,9 @@ export interface Cinema {
     name: string;
     address: string;
     active: boolean;
+    closesAt?: string;
+    closedAt?: string;
+    closureReason?: string;
     rooms: CinemaRoomSummary[];
 }
 
@@ -84,6 +90,8 @@ export interface Showtime {
     active: boolean;
     lifecycleStatus: 'UPCOMING' | 'NOW_PLAYING' | 'ENDED' | 'CANCELLED';
     bookable: boolean;
+    cancelledAt?: string;
+    cancellationReason?: string;
 }
 
 export interface SeatItem {
@@ -124,6 +132,8 @@ export interface Booking {
     discountAmount: number;
     totalAmount: number;
     voucherCode?: string;
+    cancellationReason?: string;
+    refundRequestedAt?: string;
     user?: {
         id: number;
         fullName: string;

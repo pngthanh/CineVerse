@@ -32,6 +32,10 @@ public class Showtime {
     private BigDecimal basePrice;
     @Column(nullable = false)
     private boolean active = true;
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
 
     public Long getId() { return id; }
     public Movie getMovie() { return movie; }
@@ -46,4 +50,8 @@ public class Showtime {
     public void setBasePrice(BigDecimal basePrice) { this.basePrice = basePrice; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
 }

@@ -16,6 +16,7 @@ import com.pngthanh.cineverse.cinema.repository.SeatRepository;
 import com.pngthanh.cineverse.common.enums.SeatType;
 import com.pngthanh.cineverse.common.exception.ApiException;
 import com.pngthanh.cineverse.showtime.repository.ShowtimeRepository;
+import com.pngthanh.cineverse.showtime.service.ShowtimeCancellationService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +36,8 @@ class CinemaServiceTest {
         rooms = mock(RoomRepository.class);
         seats = mock(SeatRepository.class);
         ShowtimeRepository showtimes = mock(ShowtimeRepository.class);
-        service = new CinemaService(cinemas, rooms, seats, showtimes);
+        ShowtimeCancellationService cancellations = mock(ShowtimeCancellationService.class);
+        service = new CinemaService(cinemas, rooms, seats, showtimes, cancellations);
     }
 
     @Test
