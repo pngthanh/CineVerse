@@ -21,6 +21,8 @@ const statusLabels: Record<string, string> = {
     LOCKED: 'Đã khóa',
     PENDING: 'Chờ xử lý',
     REFUND_PENDING: 'Chờ hoàn tiền',
+    REFUNDED: 'Đã hoàn tiền',
+    REFUND_FAILED: 'Hoàn tiền thất bại',
     CONFIRMED: 'Đã xác nhận',
     CANCELLED: 'Đã hủy',
     COMPLETED: 'Hoàn thành',

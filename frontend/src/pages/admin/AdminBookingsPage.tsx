@@ -55,6 +55,8 @@ export function AdminBookingsPage() {
                     <option value="PENDING">Đang chờ</option>
                     <option value="SUCCESS">Thành công</option>
                     <option value="REFUND_PENDING">Chờ hoàn tiền</option>
+                    <option value="REFUNDED">Đã hoàn tiền</option>
+                    <option value="REFUND_FAILED">Hoàn tiền thất bại</option>
                     <option value="FAILED">Thất bại</option>
                 </select>
                 <span>{filtered.length}/{items.length} booking</span>

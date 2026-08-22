@@ -9,6 +9,8 @@ export function AdminBookingDetailPage() {
     const { id } = useParams();
     const [booking, setBooking] = useState<Booking | null>(null);
     const [error, setError] = useState('');
+    const [refundWorking, setRefundWorking] = useState(false);
+    const [refundNotice, setRefundNotice] = useState('');
 
     useEffect(() => {
         if (!id) return;
@@ -16,6 +18,20 @@ export function AdminBookingDetailPage() {
             .then(setBooking)
             .catch(() => setError('Không thể tải chi tiết booking.'));
     }, [id]);
+
+    const requestRefund = async () => {
+        if (!booking) return;
+        setRefundWorking(true);
+        setRefundNotice('');
+        try {
+            await api(`/admin/bookings/${booking.id}/refund`, { method: 'POST' });
+            const refreshed = await api<Booking>(`/admin/bookings/${booking.id}`);
+            setBooking(refreshed);
+            setRefundNotice(refreshed.paymentStatus === 'REFUNDED' ? 'VNPAY đã tiếp nhận hoàn tiền thành công.' : 'Yêu cầu hoàn tiền chưa thành công. Có thể thử lại.');
+        } catch {
+            setRefundNotice('Không thể gửi yêu cầu hoàn tiền. Kiểm tra backend/VNPAY Sandbox rồi thử lại.');
+        } finally { setRefundWorking(false); }
+    };
 
     if (error) return <div className="admin-page"><div className="alert alert-error">{error}</div></div>;
     if (!booking) return <div className="admin-page"><div className="page-center">Đang tải booking...</div></div>;
@@ -88,6 +104,11 @@ export function AdminBookingDetailPage() {
                     <div className="summary-row"><span>Mã giao dịch VNPAY</span><strong className="mono-value">{booking.paymentTransactionNo ?? '—'}</strong></div>
                     <div className="summary-row"><span>Mã phản hồi</span><strong>{booking.paymentResponseCode ?? '—'}</strong></div>
                     {booking.paymentPaidAt && <div className="summary-row"><span>Thanh toán lúc</span><strong>{dateTime(booking.paymentPaidAt)}</strong></div>}
+                    {booking.refundRequestId && <div className="summary-row"><span>Refund request</span><strong className="mono-value">{booking.refundRequestId}</strong></div>}
+                    {booking.refundTransactionNo && <div className="summary-row"><span>Mã refund VNPAY</span><strong className="mono-value">{booking.refundTransactionNo}</strong></div>}
+                    {booking.refundResponseCode && <div className="summary-row"><span>Mã phản hồi refund</span><strong>{booking.refundResponseCode}</strong></div>}
+                    {booking.refundMessage && <div className="summary-row"><span>Thông báo refund</span><strong>{booking.refundMessage}</strong></div>}
+                    {booking.refundCompletedAt && <div className="summary-row"><span>Hoàn tiền lúc</span><strong>{dateTime(booking.refundCompletedAt)}</strong></div>}
                     <div className="summary-row"><span>Tiền ghế</span><strong>{money(booking.seatAmount)}</strong></div>
                     <div className="summary-row"><span>Bắp nước</span><strong>{money(booking.concessionAmount)}</strong></div>
                     <div className="summary-row"><span>Giá gốc</span><strong>{money(booking.subtotalAmount)}</strong></div>
@@ -98,6 +119,12 @@ export function AdminBookingDetailPage() {
                     <div className="summary-row"><span>Trạng thái vé</span><StatusBadge value={booking.ticketStatus} /></div>
                     {booking.ticketCheckedInAt && <div className="summary-row"><span>Check-in lúc</span><strong>{dateTime(booking.ticketCheckedInAt)}</strong></div>}
                     {booking.ticketCheckedInByName && <div className="summary-row"><span>Nhân viên check-in</span><strong>{booking.ticketCheckedInByName}</strong></div>}
+                    {(booking.paymentStatus === 'REFUND_PENDING' || booking.paymentStatus === 'REFUND_FAILED') && (
+                        <button className="btn admin-refund-button" type="button" disabled={refundWorking} onClick={() => void requestRefund()}>
+                            {refundWorking ? 'Đang gửi VNPAY...' : booking.paymentStatus === 'REFUND_FAILED' ? 'Thử hoàn tiền lại' : 'Hoàn tiền qua VNPAY'}
+                        </button>
+                    )}
+                    {refundNotice && <div className={booking.paymentStatus === 'REFUNDED' ? 'alert alert-success' : 'alert alert-warning'}>{refundNotice}</div>}
                 </aside>
             </div>
         </div>

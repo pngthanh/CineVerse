@@ -80,6 +80,7 @@ public class PaymentService {
         payment.setMethod("VNPAY");
         payment.setStatus(PaymentStatus.PENDING);
         payment.setTransactionReference(transactionReference);
+        payment.setTransactionCreatedAt(Instant.now());
         payment.setGatewayTransactionNo(null);
         payment.setBankTransactionNo(null);
         payment.setBankCode(null);

@@ -4,7 +4,7 @@ export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED' | 'INACTIVE';
 export type SeatType = 'NORMAL' | 'VIP' | 'COUPLE';
 export type SeatStatus = 'AVAILABLE' | 'HELD' | 'BOOKED';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'REFUND_PENDING' | 'CANCELLED' | 'COMPLETED';
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'REFUND_PENDING' | 'FAILED';
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'REFUND_PENDING' | 'REFUNDED' | 'REFUND_FAILED' | 'FAILED';
 export type TicketStatus = 'CONFIRMED' | 'USED' | 'CANCELLED';
 
 export interface UserProfile {
@@ -171,6 +171,12 @@ export interface Booking {
     paymentCardType?: string;
     paymentResponseCode?: string;
     paymentPaidAt?: string;
+    refundRequestId?: string;
+    refundResponseCode?: string;
+    refundTransactionStatus?: string;
+    refundTransactionNo?: string;
+    refundMessage?: string;
+    refundCompletedAt?: string;
     ticketCode?: string;
     ticketStatus?: TicketStatus;
     ticketCheckedInAt?: string;

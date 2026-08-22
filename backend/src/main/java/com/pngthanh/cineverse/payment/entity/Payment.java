@@ -33,6 +33,8 @@ public class Payment {
     private String method = "VNPAY";
     @Column(name = "transaction_reference", unique = true, length = 100)
     private String transactionReference;
+    @Column(name = "transaction_created_at")
+    private Instant transactionCreatedAt;
     @Column(name = "gateway_transaction_no", length = 100)
     private String gatewayTransactionNo;
     @Column(name = "bank_transaction_no", length = 255)
@@ -52,6 +54,18 @@ public class Payment {
     private Instant refundRequestedAt;
     @Column(name = "refund_reason", length = 500)
     private String refundReason;
+    @Column(name = "refund_request_id", length = 32)
+    private String refundRequestId;
+    @Column(name = "refund_response_code", length = 10)
+    private String refundResponseCode;
+    @Column(name = "refund_transaction_status", length = 10)
+    private String refundTransactionStatus;
+    @Column(name = "refund_transaction_no", length = 100)
+    private String refundTransactionNo;
+    @Column(name = "refund_message", length = 500)
+    private String refundMessage;
+    @Column(name = "refund_completed_at")
+    private Instant refundCompletedAt;
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -68,6 +82,8 @@ public class Payment {
     public void setMethod(String method) { this.method = method; }
     public String getTransactionReference() { return transactionReference; }
     public void setTransactionReference(String transactionReference) { this.transactionReference = transactionReference; }
+    public Instant getTransactionCreatedAt() { return transactionCreatedAt; }
+    public void setTransactionCreatedAt(Instant value) { this.transactionCreatedAt = value; }
     public String getGatewayTransactionNo() { return gatewayTransactionNo; }
     public void setGatewayTransactionNo(String gatewayTransactionNo) { this.gatewayTransactionNo = gatewayTransactionNo; }
     public String getBankTransactionNo() { return bankTransactionNo; }
@@ -88,5 +104,17 @@ public class Payment {
     public void setRefundRequestedAt(Instant refundRequestedAt) { this.refundRequestedAt = refundRequestedAt; }
     public String getRefundReason() { return refundReason; }
     public void setRefundReason(String refundReason) { this.refundReason = refundReason; }
+    public String getRefundRequestId() { return refundRequestId; }
+    public void setRefundRequestId(String refundRequestId) { this.refundRequestId = refundRequestId; }
+    public String getRefundResponseCode() { return refundResponseCode; }
+    public void setRefundResponseCode(String value) { this.refundResponseCode = value; }
+    public String getRefundTransactionStatus() { return refundTransactionStatus; }
+    public void setRefundTransactionStatus(String value) { this.refundTransactionStatus = value; }
+    public String getRefundTransactionNo() { return refundTransactionNo; }
+    public void setRefundTransactionNo(String value) { this.refundTransactionNo = value; }
+    public String getRefundMessage() { return refundMessage; }
+    public void setRefundMessage(String value) { this.refundMessage = value; }
+    public Instant getRefundCompletedAt() { return refundCompletedAt; }
+    public void setRefundCompletedAt(Instant value) { this.refundCompletedAt = value; }
     public Instant getCreatedAt() { return createdAt; }
 }

@@ -25,7 +25,7 @@ public class SchemaCompatibilityInitializer implements CommandLineRunner {
         replaceCheck(
                 "payments",
                 "payments_status_check",
-                "status IN ('PENDING','SUCCESS','REFUND_PENDING','FAILED')");
+                "status IN ('PENDING','SUCCESS','REFUND_PENDING','REFUNDED','REFUND_FAILED','FAILED')");
         replaceCheck(
                 "movies",
                 "movies_status_check",
