@@ -60,13 +60,16 @@ export function AdminDashboardPage() {
         if (to) params.set('to', to);
         if (cinemaId) params.set('cinemaId', cinemaId);
         if (movieId) params.set('movieId', movieId);
-        setLoading(true);
-        setError('');
         void api<Stats>(`/admin/dashboard/analytics?${params.toString()}`)
             .then(setStats)
             .catch(() => setError('Không thể tải dữ liệu thống kê.'))
             .finally(() => setLoading(false));
     }, [from, to, cinemaId, movieId]);
+
+    const beginFilterChange = () => {
+        setLoading(true);
+        setError('');
+    };
 
     const maxTrend = Math.max(1, ...(stats?.trend.map((row) => row.revenue) ?? [1]));
     const maxCinema = Math.max(1, ...(stats?.cinemas.map((row) => row.revenue) ?? [1]));
@@ -79,11 +82,11 @@ export function AdminDashboardPage() {
         </div>
 
         <section className="panel g11-filters">
-            <label>Từ ngày<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-            <label>Đến ngày<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-            <label>Rạp<select value={cinemaId} onChange={(e) => setCinemaId(e.target.value)}><option value="">Tất cả rạp</option>{cinemas.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-            <label>Phim<select value={movieId} onChange={(e) => setMovieId(e.target.value)}><option value="">Tất cả phim</option>{movies.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select></label>
-            <button className="btn btn-secondary" type="button" onClick={() => { setFrom(initialFrom); setTo(isoDate(today)); setCinemaId(''); setMovieId(''); }}>Đặt lại</button>
+            <label>Từ ngày<input type="date" value={from} onChange={(e) => { beginFilterChange(); setFrom(e.target.value); }} /></label>
+            <label>Đến ngày<input type="date" value={to} onChange={(e) => { beginFilterChange(); setTo(e.target.value); }} /></label>
+            <label>Rạp<select value={cinemaId} onChange={(e) => { beginFilterChange(); setCinemaId(e.target.value); }}><option value="">Tất cả rạp</option>{cinemas.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+            <label>Phim<select value={movieId} onChange={(e) => { beginFilterChange(); setMovieId(e.target.value); }}><option value="">Tất cả phim</option>{movies.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select></label>
+            <button className="btn btn-secondary g11-reset-button" type="button" onClick={() => { beginFilterChange(); setFrom(initialFrom); setTo(isoDate(today)); setCinemaId(''); setMovieId(''); }}>Đặt lại</button>
         </section>
 
         {error && <div className="alert alert-error">{error}</div>}

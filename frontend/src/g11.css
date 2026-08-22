@@ -38,3 +38,5 @@
 @media (max-width: 1000px) { .g11-filters { grid-template-columns: repeat(2, 1fr); } .g11-kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) { .g11-grid-two, .g11-summary-strip { grid-template-columns: 1fr; } .g11-ranking > div { grid-template-columns: 1fr auto; } .g11-ranking i { grid-column: 1 / -1; } }
 @media (max-width: 520px) { .g11-filters, .g11-kpis { grid-template-columns: 1fr; } .voucher-promo-copy { grid-template-rows: 20px 52px 42px auto; } }
+
+.g11-reset-button { align-self: end; height: 40px; margin-bottom: 0; }
