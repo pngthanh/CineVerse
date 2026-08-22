@@ -2,226 +2,120 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
 import { money } from '../../lib/format';
 
-interface CinemaRevenue {
-    cinemaId: number;
-    cinemaName: string;
+interface TrendPoint { label: string; revenue: number; tickets: number }
+interface CinemaRow { id: number; name: string; bookings: number; tickets: number; revenue: number }
+interface MovieRow { id: number; title: string; posterUrl?: string; bookings: number; tickets: number; revenue: number }
+interface ConcessionRow { id: number; name: string; quantity: number; revenue: number }
+interface VoucherRow { code: string; uses: number; discountAmount: number }
+interface PaymentMethodRow { method: string; transactions: number; revenue: number }
+interface Stats {
     bookings: number;
     ticketsSold: number;
+    checkedInTickets: number;
     seatRevenue: number;
     concessionRevenue: number;
     discountAmount: number;
     netRevenue: number;
-    movies: MovieRevenue[];
-    concessions: ConcessionRevenue[];
+    trend: TrendPoint[];
+    cinemas: CinemaRow[];
+    movies: MovieRow[];
+    concessions: ConcessionRow[];
+    vouchers: VoucherRow[];
+    paymentMethods: PaymentMethodRow[];
 }
+interface Option { id: number; name?: string; title?: string }
 
-interface MovieRevenue {
-    movieId: number;
-    movieTitle: string;
-    posterUrl?: string;
-    bookings: number;
-    ticketsSold: number;
-    ticketRevenue: number;
-}
-
-interface ConcessionRevenue {
-    itemId: number;
-    itemName: string;
-    quantity: number;
-    revenue: number;
-}
-
-interface Stats {
-    totalUsers: number;
-    totalBookings: number;
-    confirmedBookings: number;
-    totalMovies: number;
-    totalCinemas: number;
-    ticketsSold: number;
-    grossSeatRevenue: number;
-    concessionRevenue: number;
-    discountAmount: number;
-    netRevenue: number;
-    cinemas: CinemaRevenue[];
-    movies: MovieRevenue[];
-    concessions: ConcessionRevenue[];
-}
+function isoDate(date: Date) { return date.toISOString().slice(0, 10); }
 
 export function AdminDashboardPage() {
+    const today = useMemo(() => new Date(), []);
+    const initialFrom = useMemo(() => {
+        const date = new Date(today);
+        date.setDate(date.getDate() - 29);
+        return isoDate(date);
+    }, [today]);
+    const [from, setFrom] = useState(initialFrom);
+    const [to, setTo] = useState(isoDate(today));
+    const [cinemaId, setCinemaId] = useState('');
+    const [movieId, setMovieId] = useState('');
     const [stats, setStats] = useState<Stats | null>(null);
-    const [selectedCinemaId, setSelectedCinemaId] = useState('');
+    const [cinemas, setCinemas] = useState<Option[]>([]);
+    const [movies, setMovies] = useState<Option[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        void api<Stats>('/admin/dashboard')
-            .then(setStats)
-            .catch(() => setError('Không thể tải dữ liệu thống kê.'));
+        void Promise.all([
+            api<Option[]>('/admin/cinemas'),
+            api<Option[]>('/admin/movies'),
+        ]).then(([cinemaRows, movieRows]) => {
+            setCinemas(cinemaRows);
+            setMovies(movieRows);
+        });
     }, []);
 
-    const selectedCinema = useMemo(
-        () => stats?.cinemas.find((cinema) => cinema.cinemaId === Number(selectedCinemaId)),
-        [stats, selectedCinemaId],
-    );
-    const displayedMovies = selectedCinema?.movies ?? stats?.movies ?? [];
-    const displayedConcessions = selectedCinema?.concessions ?? stats?.concessions ?? [];
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        if (cinemaId) params.set('cinemaId', cinemaId);
+        if (movieId) params.set('movieId', movieId);
+        setLoading(true);
+        setError('');
+        void api<Stats>(`/admin/dashboard/analytics?${params.toString()}`)
+            .then(setStats)
+            .catch(() => setError('Không thể tải dữ liệu thống kê.'))
+            .finally(() => setLoading(false));
+    }, [from, to, cinemaId, movieId]);
 
-    const maxMovieTickets = Math.max(1, ...displayedMovies.map((movie) => movie.ticketsSold), 1);
-    const maxCinemaRevenue = Math.max(1, ...(stats?.cinemas.map((cinema) => cinema.netRevenue) ?? [1]));
+    const maxTrend = Math.max(1, ...(stats?.trend.map((row) => row.revenue) ?? [1]));
+    const maxCinema = Math.max(1, ...(stats?.cinemas.map((row) => row.revenue) ?? [1]));
+    const maxMovie = Math.max(1, ...(stats?.movies.map((row) => row.tickets) ?? [1]));
+    const checkInRate = stats?.ticketsSold ? Math.round(stats.checkedInTickets / stats.ticketsSold * 100) : 0;
 
-    if (error) return <div className="alert alert-error">{error}</div>;
-
-    return (
-        <div className="admin-page dashboard-page">
-            <div className="page-title dashboard-title-row">
-                <div>
-                    <h1>Tổng quan vận hành</h1>
-                    <p>Doanh thu, vé bán, phim và bắp nước từ các booking đã xác nhận.</p>
-                </div>
-                <select value={selectedCinemaId} onChange={(event) => setSelectedCinemaId(event.target.value)}>
-                    <option value="">Toàn hệ thống</option>
-                    {stats?.cinemas.map((cinema) => (
-                        <option key={cinema.cinemaId} value={cinema.cinemaId}>{cinema.cinemaName}</option>
-                    ))}
-                </select>
-            </div>
-
-            <div className="dashboard-kpi-grid">
-                <div className="dashboard-kpi primary">
-                    <span>Doanh thu thực nhận</span>
-                    <strong>{money(selectedCinema?.netRevenue ?? stats?.netRevenue ?? 0)}</strong>
-                    <small>Sau voucher/giảm giá</small>
-                </div>
-                <div className="dashboard-kpi">
-                    <span>Doanh thu vé gốc</span>
-                    <strong>{money(selectedCinema?.seatRevenue ?? stats?.grossSeatRevenue ?? 0)}</strong>
-                    <small>Chưa trừ voucher</small>
-                </div>
-                <div className="dashboard-kpi">
-                    <span>Bắp nước</span>
-                    <strong>{money(selectedCinema?.concessionRevenue ?? stats?.concessionRevenue ?? 0)}</strong>
-                    <small>Doanh thu concession</small>
-                </div>
-                <div className="dashboard-kpi">
-                    <span>Vé đã bán</span>
-                    <strong>{selectedCinema?.ticketsSold ?? stats?.ticketsSold ?? 0}</strong>
-                    <small>{selectedCinema?.bookings ?? stats?.confirmedBookings ?? 0} booking xác nhận</small>
-                </div>
-            </div>
-
-            <div className="dashboard-mini-stats">
-                <span><strong>{stats?.totalUsers ?? 0}</strong> người dùng</span>
-                <span><strong>{stats?.totalBookings ?? 0}</strong> booking tổng</span>
-                <span><strong>{stats?.totalMovies ?? 0}</strong> phim</span>
-                <span><strong>{stats?.totalCinemas ?? 0}</strong> rạp</span>
-                <span><strong>{money(stats?.discountAmount ?? 0)}</strong> ưu đãi đã dùng</span>
-            </div>
-
-            <div className="dashboard-grid-two">
-                <section className="panel dashboard-panel">
-                    <div className="section-head compact">
-                        <div>
-                            <h2>Doanh thu theo rạp</h2>
-                            <p>So sánh doanh thu thực nhận của từng cụm rạp.</p>
-                        </div>
-                    </div>
-                    <div className="dashboard-ranking-list">
-                        {stats?.cinemas.map((cinema) => (
-                            <button
-                                className={`dashboard-ranking-row ${selectedCinemaId === String(cinema.cinemaId) ? 'active' : ''}`}
-                                key={cinema.cinemaId}
-                                type="button"
-                                onClick={() => setSelectedCinemaId(String(cinema.cinemaId))}
-                            >
-                                <div className="dashboard-ranking-label">
-                                    <strong>{cinema.cinemaName}</strong>
-                                    <span>{cinema.ticketsSold} vé · {cinema.bookings} booking</span>
-                                </div>
-                                <div className="dashboard-bar-track">
-                                    <span style={{ width: `${Math.max(4, cinema.netRevenue / maxCinemaRevenue * 100)}%` }} />
-                                </div>
-                                <strong>{money(cinema.netRevenue)}</strong>
-                            </button>
-                        ))}
-                        {stats?.cinemas.length === 0 && <div className="empty">Chưa có doanh thu xác nhận.</div>}
-                    </div>
-                </section>
-
-                <section className="panel dashboard-panel">
-                    <div className="section-head compact">
-                        <div>
-                            <h2>Chi tiết rạp</h2>
-                            <p>{selectedCinema?.cinemaName ?? 'Chọn một rạp để xem riêng'}</p>
-                        </div>
-                    </div>
-                    {selectedCinema ? (
-                        <div className="dashboard-detail-grid">
-                            <div><span>Doanh thu vé</span><strong>{money(selectedCinema.seatRevenue)}</strong></div>
-                            <div><span>Bắp nước</span><strong>{money(selectedCinema.concessionRevenue)}</strong></div>
-                            <div><span>Giảm giá</span><strong>-{money(selectedCinema.discountAmount)}</strong></div>
-                            <div className="highlight"><span>Thực nhận</span><strong>{money(selectedCinema.netRevenue)}</strong></div>
-                        </div>
-                    ) : (
-                        <div className="dashboard-system-note">
-                            <strong>Toàn hệ thống</strong>
-                            <p>Chọn một rạp ở bảng bên trái hoặc dropdown phía trên để drill-down số liệu riêng.</p>
-                        </div>
-                    )}
-                </section>
-            </div>
-
-            <div className="dashboard-grid-two">
-                <section className="panel dashboard-panel">
-                    <div className="section-head compact">
-                        <div>
-                            <h2>Phim bán chạy</h2>
-                            <p>{selectedCinema ? `Riêng ${selectedCinema.cinemaName}` : 'Xếp theo số ghế/vé đã thanh toán thành công.'}</p>
-                        </div>
-                    </div>
-                    <div className="dashboard-movie-list">
-                        {displayedMovies.slice(0, 8).map((movie, index) => (
-                            <article className="dashboard-movie-row" key={movie.movieId}>
-                                <span className="dashboard-rank">{String(index + 1).padStart(2, '0')}</span>
-                                <div
-                                    className="dashboard-movie-poster"
-                                    style={movie.posterUrl ? { backgroundImage: `url(${movie.posterUrl})` } : undefined}
-                                >
-                                    {!movie.posterUrl && movie.movieTitle.slice(0, 1)}
-                                </div>
-                                <div className="dashboard-movie-info">
-                                    <strong>{movie.movieTitle}</strong>
-                                    <span>{movie.ticketsSold} vé · {movie.bookings} booking</span>
-                                    <div className="dashboard-bar-track movie">
-                                        <span style={{ width: `${Math.max(4, movie.ticketsSold / maxMovieTickets * 100)}%` }} />
-                                    </div>
-                                </div>
-                                <strong>{money(movie.ticketRevenue)}</strong>
-                            </article>
-                        ))}
-                        {displayedMovies.length === 0 && <div className="empty">Chưa có dữ liệu phim.</div>}
-                    </div>
-                </section>
-
-                <section className="panel dashboard-panel">
-                    <div className="section-head compact">
-                        <div>
-                            <h2>Bắp nước & combo</h2>
-                            <p>{selectedCinema ? `Riêng ${selectedCinema.cinemaName}` : 'Số lượng bán và doanh thu theo từng sản phẩm.'}</p>
-                        </div>
-                    </div>
-                    <div className="dashboard-concession-list">
-                        {displayedConcessions.map((item) => (
-                            <div className="dashboard-concession-row" key={item.itemId}>
-                                <div>
-                                    <strong>{item.itemName}</strong>
-                                    <span>{item.quantity} sản phẩm đã bán</span>
-                                </div>
-                                <strong>{money(item.revenue)}</strong>
-                            </div>
-                        ))}
-                        {displayedConcessions.length === 0 && <div className="empty">Chưa có dữ liệu bắp nước.</div>}
-                    </div>
-                </section>
-            </div>
+    return <div className="admin-page g11-dashboard">
+        <div className="page-title g11-title">
+            <div><h1>Dashboard & thống kê</h1><p>Theo dõi doanh thu và vận hành từ các booking đã xác nhận.</p></div>
         </div>
-    );
+
+        <section className="panel g11-filters">
+            <label>Từ ngày<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+            <label>Đến ngày<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+            <label>Rạp<select value={cinemaId} onChange={(e) => setCinemaId(e.target.value)}><option value="">Tất cả rạp</option>{cinemas.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+            <label>Phim<select value={movieId} onChange={(e) => setMovieId(e.target.value)}><option value="">Tất cả phim</option>{movies.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select></label>
+            <button className="btn btn-secondary" type="button" onClick={() => { setFrom(initialFrom); setTo(isoDate(today)); setCinemaId(''); setMovieId(''); }}>Đặt lại</button>
+        </section>
+
+        {error && <div className="alert alert-error">{error}</div>}
+        {loading && <div className="panel g11-loading">Đang tải thống kê...</div>}
+        {!loading && stats && <>
+            <div className="g11-kpis">
+                <article><span>Doanh thu thực nhận</span><strong>{money(stats.netRevenue)}</strong><small>Sau voucher/giảm giá</small></article>
+                <article><span>Vé đã bán</span><strong>{stats.ticketsSold}</strong><small>{stats.bookings} booking</small></article>
+                <article><span>Check-in</span><strong>{stats.checkedInTickets}</strong><small>{checkInRate}% số vé đã bán</small></article>
+                <article><span>Bắp nước</span><strong>{money(stats.concessionRevenue)}</strong><small>Doanh thu concession</small></article>
+            </div>
+            <div className="g11-summary-strip">
+                <span>Vé gốc <b>{money(stats.seatRevenue)}</b></span>
+                <span>Ưu đãi <b>-{money(stats.discountAmount)}</b></span>
+                <span>Phương thức thanh toán <b>{stats.paymentMethods.length}</b></span>
+                <span>Voucher đã dùng <b>{stats.vouchers.reduce((sum, row) => sum + row.uses, 0)}</b></span>
+            </div>
+
+            <div className="g11-grid-two">
+                <section className="panel g11-panel"><h2>Doanh thu theo ngày / tháng</h2><p className="muted">Tự chuyển sang theo tháng khi khoảng lọc dài.</p><div className="g11-trend">{stats.trend.map((row) => <div className="g11-trend-col" key={row.label}><div className="g11-trend-value">{money(row.revenue)}</div><div className="g11-trend-bar"><span style={{ height: `${Math.max(5, row.revenue / maxTrend * 100)}%` }} /></div><small>{row.label}</small></div>)}{stats.trend.length === 0 && <div className="empty">Chưa có doanh thu trong khoảng này.</div>}</div></section>
+                <section className="panel g11-panel"><h2>Phương thức thanh toán</h2><div className="g11-list">{stats.paymentMethods.map((row) => <div key={row.method}><span><b>{row.method}</b><small>{row.transactions} giao dịch</small></span><strong>{money(row.revenue)}</strong></div>)}{stats.paymentMethods.length === 0 && <div className="empty">Chưa có dữ liệu thanh toán.</div>}</div></section>
+            </div>
+
+            <div className="g11-grid-two">
+                <section className="panel g11-panel"><h2>Doanh thu theo rạp</h2><div className="g11-ranking">{stats.cinemas.map((row) => <div key={row.id}><span><b>{row.name}</b><small>{row.tickets} vé · {row.bookings} booking</small></span><i><em style={{ width: `${Math.max(4, row.revenue / maxCinema * 100)}%` }} /></i><strong>{money(row.revenue)}</strong></div>)}{stats.cinemas.length === 0 && <div className="empty">Chưa có dữ liệu rạp.</div>}</div></section>
+                <section className="panel g11-panel"><h2>Phim bán tốt</h2><div className="g11-ranking">{stats.movies.slice(0, 8).map((row) => <div key={row.id}><span><b>{row.title}</b><small>{row.tickets} vé · {row.bookings} booking</small></span><i><em style={{ width: `${Math.max(4, row.tickets / maxMovie * 100)}%` }} /></i><strong>{money(row.revenue)}</strong></div>)}{stats.movies.length === 0 && <div className="empty">Chưa có dữ liệu phim.</div>}</div></section>
+            </div>
+
+            <div className="g11-grid-two">
+                <section className="panel g11-panel"><h2>Bắp nước & combo</h2><div className="g11-list">{stats.concessions.map((row) => <div key={row.id}><span><b>{row.name}</b><small>{row.quantity} sản phẩm</small></span><strong>{money(row.revenue)}</strong></div>)}{stats.concessions.length === 0 && <div className="empty">Chưa có dữ liệu concession.</div>}</div></section>
+                <section className="panel g11-panel"><h2>Voucher</h2><div className="g11-list">{stats.vouchers.map((row) => <div key={row.code}><span><b>{row.code}</b><small>{row.uses} lượt sử dụng</small></span><strong>-{money(row.discountAmount)}</strong></div>)}{stats.vouchers.length === 0 && <div className="empty">Chưa có voucher được sử dụng.</div>}</div></section>
+            </div>
+        </>}
+    </div>;
 }

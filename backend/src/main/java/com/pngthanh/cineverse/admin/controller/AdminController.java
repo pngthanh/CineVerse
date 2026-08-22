@@ -1,11 +1,13 @@
 package com.pngthanh.cineverse.admin.controller;
 
+import com.pngthanh.cineverse.admin.dto.AdvancedDashboardResponse;
 import com.pngthanh.cineverse.admin.dto.DashboardResponse;
 import com.pngthanh.cineverse.admin.service.AdminService;
+import com.pngthanh.cineverse.admin.service.DashboardAnalyticsService;
 import com.pngthanh.cineverse.cinema.dto.CinemaRequest;
 import com.pngthanh.cineverse.cinema.dto.CinemaResponse;
-import com.pngthanh.cineverse.cinema.dto.RoomRequest;
 import com.pngthanh.cineverse.cinema.dto.LifecycleScheduleRequest;
+import com.pngthanh.cineverse.cinema.dto.RoomRequest;
 import com.pngthanh.cineverse.cinema.service.CinemaService;
 import com.pngthanh.cineverse.movie.dto.MovieRequest;
 import com.pngthanh.cineverse.movie.dto.MovieResponse;
@@ -20,9 +22,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,16 +36,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin")
 public class AdminController {
     private final AdminService admin;
+    private final DashboardAnalyticsService analytics;
     private final MovieService movies;
     private final CinemaService cinemas;
     private final ShowtimeService showtimes;
 
     public AdminController(
             AdminService admin,
+            DashboardAnalyticsService analytics,
             MovieService movies,
             CinemaService cinemas,
             ShowtimeService showtimes) {
         this.admin = admin;
+        this.analytics = analytics;
         this.movies = movies;
         this.cinemas = cinemas;
         this.showtimes = showtimes;
@@ -52,6 +57,17 @@ public class AdminController {
     @GetMapping("/dashboard")
     public DashboardResponse dashboard() {
         return admin.dashboard();
+    }
+
+    @GetMapping("/dashboard/analytics")
+    public AdvancedDashboardResponse dashboardAnalytics(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long cinemaId,
+            @RequestParam(required = false) Long movieId) {
+        return analytics.dashboard(from, to, cinemaId, movieId);
     }
 
     @GetMapping("/movies")
@@ -66,9 +82,7 @@ public class AdminController {
     }
 
     @PutMapping("/movies/{id}")
-    public MovieResponse updateMovie(
-            @PathVariable Long id,
-            @Valid @RequestBody MovieRequest request) {
+    public MovieResponse updateMovie(@PathVariable Long id, @Valid @RequestBody MovieRequest request) {
         return movies.update(id, request);
     }
 
@@ -77,7 +91,6 @@ public class AdminController {
     public void deactivateMovie(@PathVariable Long id) {
         movies.deactivate(id);
     }
-
 
     @GetMapping("/cinemas")
     public List<CinemaResponse> cinemas() {
@@ -91,9 +104,7 @@ public class AdminController {
     }
 
     @PutMapping("/cinemas/{id}")
-    public CinemaResponse updateCinema(
-            @PathVariable Long id,
-            @Valid @RequestBody CinemaRequest request) {
+    public CinemaResponse updateCinema(@PathVariable Long id, @Valid @RequestBody CinemaRequest request) {
         return cinemas.update(id, request);
     }
 
@@ -102,7 +113,6 @@ public class AdminController {
     public void deactivateCinema(@PathVariable Long id) {
         cinemas.deactivateCinema(id);
     }
-
 
     @PatchMapping("/cinemas/{id}/closure")
     public CinemaResponse scheduleCinemaClosure(
@@ -113,16 +123,12 @@ public class AdminController {
 
     @PostMapping("/cinemas/{id}/rooms")
     @ResponseStatus(HttpStatus.CREATED)
-    public CinemaResponse.RoomResponse createRoom(
-            @PathVariable Long id,
-            @Valid @RequestBody RoomRequest request) {
+    public CinemaResponse.RoomResponse createRoom(@PathVariable Long id, @Valid @RequestBody RoomRequest request) {
         return cinemas.createRoom(id, request);
     }
 
     @PutMapping("/rooms/{id}")
-    public CinemaResponse.RoomResponse updateRoom(
-            @PathVariable Long id,
-            @Valid @RequestBody RoomRequest request) {
+    public CinemaResponse.RoomResponse updateRoom(@PathVariable Long id, @Valid @RequestBody RoomRequest request) {
         return cinemas.updateRoom(id, request);
     }
 
@@ -131,7 +137,6 @@ public class AdminController {
     public void deactivateRoom(@PathVariable Long id) {
         cinemas.deactivateRoom(id);
     }
-
 
     @PatchMapping("/rooms/{id}/closure")
     public CinemaResponse.RoomResponse scheduleRoomClosure(
